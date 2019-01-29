@@ -3,7 +3,6 @@
 ###### Version 1 ######
 
 import requests
-import overpy
 
 
 '''
@@ -11,23 +10,15 @@ Resources:
 - Overpass API for Python documentation [https://python-overpy.readthedocs.io/en/latest/]
 - Overpass Language Guide (must learn, based on C I believe) [https://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide]
 - Overpass Turbo Workbench []
-
-Instructions:
-1. Build queries with the workbench
-2. Insert queries into overpy api reqeust call
-3. load data into dataframe
-4. Inspect for quality manually if possible
 '''
 
+import requests
+
+q = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
+ql = {'data':q}
+michigan = requests.get('https://overpass-api.de/api/interpreter', params=ql)
+
+print(michigan.text)
 
 
-## Example 
-api = overpy.Overpass()
-result = api.query("""
-	node["foot"="designated"]({{bbox}});
-  	way["foot"="designated"]({{bbox}});
-  	relation["foot"="designated"]({{bbox}});
-  	""")
-numnodes = len(result.nodes) 
-numways = len(result.ways)
-numrelations = len(result.relations)
+
