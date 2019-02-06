@@ -1,40 +1,6 @@
-### Jack Stephenson ###
+#### UMSIvsTOTAGO  ####
 ## Overpass Explorer ##
 ###### Version 1 ######
-
-import requests
-import json
-import pandas as pd
-# from itertools import ifilter
-
-
-
-'''
-Resources:
-- Overpass API for Python documentation [https://python-overpy.readthedocs.io/en/latest/]
-- Overpass Language Guide (must learn, based on C I believe) [https://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide]
-- Overpass Turbo Workbench []
-'''
-
-'''
-TODO:
-[] discuss best data structure to use (for recursively finding start and end nodes in relations, later injecting bus stop info to nodes)
-'''
-
-
-## Query for one relation: "North Country Trail"
-
-import pandas as pd
-import requests
-import json
-
-pd.set_option('display.max_colwidth', -1)
-
-
-# q = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
-# ql = {'data':q}
-# mich = requests.get('https://overpass-api.de/api/interpreter', params=ql)
-
 import pandas as pd
 import requests
 import json
