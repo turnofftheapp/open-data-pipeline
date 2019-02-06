@@ -4,6 +4,7 @@
 
 import requests
 import json
+import pandas as pd
 # from itertools import ifilter
 
 
@@ -22,22 +23,25 @@ TODO:
 
 
 ## Query for one relation: "North Country Trail"
+
+pd.set_option('display.max_colwidth', -1)
+
 q = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 ql = {'data':q}
 nct = requests.get('https://overpass-api.de/api/interpreter', params=ql)
 
 geoJlist = json.loads(nct.text)['elements']
-relations = [element for element in geoJlist if element['type'] == "relation"]
-ways = [element for element in geoJlist if element['type'] == "way"]
+
 nodes = [element for element in geoJlist if element['type'] == "node"]
+ways = [element for element in geoJlist if element['type'] == "way"]
+relations = [element for element in geoJlist if element['type'] == "relation"]
 
 
+# ## input: a relation output: start_lat start_lng end_lat end_lng
+# def get_endpoints(relation):
+	
+# 		print(relFirstWayID, relLastWayID)
 
-def get_endpoints(geoJlist):
-	for rel in relations: 
-		relFirstWayID = rel['members'][0]['ref']
-		relLastWayID = rel['members'][-1]['ref']
-		print(relFirstWayID, relLastWayID)
 
 
 
