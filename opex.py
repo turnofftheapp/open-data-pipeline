@@ -38,12 +38,12 @@ relations = [element for element in geoJlist if element['type'] == "relation"]
 
 
 # ## input: a relation output: start_lat start_lng end_lat end_lng
-# def get_endpoints(relation):
-	
-# 		print(relFirstWayID, relLastWayID)
+def getcoords():
+	pass 
 
-
-
+nodeDf = pd.DataFrame(nodes)
+wayDf = pd.DataFrame(ways)
+relDf = pd.DataFrame(relations)
 
 
 
