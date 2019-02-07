@@ -11,6 +11,7 @@ import os
 ## OUT: begin_lat int, begin_lon int, end_lat int, end_lon int
 def get_coords(c):
 
+	
 	firstway_id = c['members'][0]['ref']
 	print(firstway_id)
 
