@@ -27,3 +27,14 @@ def get_coords(c):
 	# end_lat = float(lastnode_coords['lat'])
 	# end_lon = float(lastnode_coords['lon'])
 	return (begin_lat, begin_lon, end_lat, end_lon)
+
+
+## IN: country, region
+## OUT: Overpass region code
+getArea(country='US', region='MI'):
+	'''
+	Make request to overpass or wherever to retreive geo encodings.
+	In the future we'll use this function to make it easier to 
+	switch states and areas when querying.
+	'''
+	pass
