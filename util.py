@@ -31,7 +31,7 @@ def get_coords(c):
 
 ## IN: country, region
 ## OUT: Overpass region code
-getArea(country='US', region='MI'):
+def getArea(country='US', region='MI'):
 	'''
 	Make request to overpass or wherever to retreive geo encodings.
 	In the future we'll use this function to make it easier to 
