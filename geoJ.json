@@ -1,4 +1,3 @@
-(totago) Jacks-MacBook-Pro-3:open-data-pipeline jackstephenson$ python opex.py 
 {
   "version": 0.6,
   "generator": "Overpass API 0.7.55.5 2ca3f387",
@@ -232725,8 +232724,3 @@
 
   ]
 }
-
-nodes:  0
-ways:  0
-relations:  1
-(totago) Jacks-MacBook-Pro-3:open-data-pipeline jackstephenson$ 
