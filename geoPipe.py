@@ -49,6 +49,9 @@ nod_df = dfs[0]
 rel_df = dfs[1]
 way_df = dfs[2]
 
+print(nod_df.columns)
+print(rel_df.columns)
+print(way_df.columns)
 
 ''' get start and end of every way in relation '''
 
@@ -84,7 +87,7 @@ def get_coords(row):
 
 # rel_df['nodes'] = rel_df.apply(get_coords, axis=1)
 
-rel_df.apply(get_coords, axis=1)
+# rel_df.apply(get_coords, axis=1)
 
 
 
