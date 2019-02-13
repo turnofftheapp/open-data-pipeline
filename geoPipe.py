@@ -19,22 +19,6 @@ requests_cache.install_cache('demo_cache')
 
 pd.set_option('display.max_colwidth', -1)
 
-'''
-FOR ADRIAN/HENRY, BIG QUESTION: In order to do all our data processing, with a focus
-								on efficiency and readability should we:
-
-								1. Use 1 pandas dataframe, query against itself with 
-								apply function? Util functions will also be applied.
-												---OR---
-								2. Create 3 pandas dataframes, Relations, Ways, Nodes? 
-												---OR---
-								3. create objects for the three types of Elements: 
-								Relations, Ways, and Nodes, then inject into 
-								database?
-												---OR---
-								4. Keep in original list of dictionary format? (eh)
-'''	
-
 # dataset for 1 trail
 # q = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 # ql = {'data':q}
@@ -57,56 +41,60 @@ def queryToDf():
 	geoJelements_df = pd.DataFrame(geoJelements)
 	return geoJelements_df
 
+'''split elements into 3 dfs'''
+
+geoJelements_df = queryToDf()
+dfs = [x for _, x in geoJelements_df.groupby('type')]
+nod_df = dfs[0]
+rel_df = dfs[1]
+way_df = dfs[2]
+
+
+''' get start and end of every way in relation '''
+
 ##  IN: dataframe to apply function to, c is an iterator object (I think?)
 ## OUT: creates list of trail objects
-def get_coords(c):
+def get_coords(row):
+	nodes = []
+	nodinfo = []
 
-	
-	firstway_id = c['members'][0]['ref']
-	print(firstway_id)
+	for way in row['members']:
+		waynodes = list(way_df.loc[way_df['id'] == way['ref']]['nodes'])
+
+
+		# nodes.append(way_df.iloc(way_df['id'] == way['ref'])['nodes'])
+
+	# print(nodes)
+	# print("----------")
 
 	# firstnode_id = list(wa.loc[wa['id'] == firstway_id]['nodes'])[0][0]
 	# firstnode_coords = nod.loc[nod['id'] == firstnode_id]
 	# begin_lat = float(firstnode_coords['lat'])
 	# begin_lon = float(firstnode_coords['lon'])
 	
-	lastway_id = c['members'][-1]['ref']
-	print(lastway_id)
+	# lastway_id = c['members'][-1]['ref']
+	# print(lastway_id)
 
 	# lastnode_id = list(wa.loc[wa['id'] == lastway_id]['nodes'])[0][-1]
 	# lastnode_coords = nod.loc[nod['id']==lastnode_id]
 	# end_lat = float(lastnode_coords['lat'])
 	# end_lon = float(lastnode_coords['lon'])
-	return (begin_lat, begin_lon, end_lat, end_lon)							
+	# return (begin_lat, begin_lon, end_lat, end_lon)		
+	# return nodes					
+
+# rel_df['nodes'] = rel_df.apply(get_coords, axis=1)
+
+rel_df.apply(get_coords, axis=1)
 
 
-## TODO: Function to split dataframes into objects of relations, ways, and nodes
 
-class Relation:
-	def __init__(self, id, tags, ways):
-		pass
-class Way: 
-	def __init__(self, id, nodes, tags):
-		pass
-class Node:
-	def __init__(self, id, lat, lon):
-		pass
+# print(rel_df.apply(get_coords, axis=))
+# def main():
+# 	geoJelements_df = queryToDf()
+# 	print(geoJelements_df.head())
 
-class Trail:
-	def __init__(self, id, begin_lat, begin_lon, end_lat, end_lon, tags, type):
-
-
-		## TODO: This will go at the end, everything in between will be operations 
-		##       on the staging database. All completed utility functions will be 
-		##       built in util.py
-		pass
-
-def main():
-	geoJelements_df = queryToDf()
-	print(geoJelements_df.head())
-
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
 
 
 
