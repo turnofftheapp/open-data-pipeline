@@ -13,7 +13,7 @@ from pprint import pprint
 
 '''TODO: Add bug testing and possibly logging features'''
 DEBUG_MODE = False
-
+WAYLIMIT = 100
 requests_cache.install_cache('demo_cache')
 
 
@@ -38,8 +38,10 @@ def queryToDf():
 	geoJ = json.loads(outs.text)
 	geoJelements = geoJ['elements']
 
+
 	geoJelements_df = pd.DataFrame(geoJelements)
 	return geoJelements_df
+
 
 '''split elements into 3 dfs'''
 
@@ -48,10 +50,10 @@ dfs = [x for _, x in geoJelements_df.groupby('type')]
 nod_df = dfs[0]
 rel_df = dfs[1]
 way_df = dfs[2]
-
-print(nod_df.columns)
-print(rel_df.columns)
-print(way_df.columns)
+# print(rel_df.head(5))
+# print(nod_df.columns)
+# print(rel_df.columns)
+# print(way_df.columns)
 
 ''' get start and end of every way in relation '''
 
@@ -60,10 +62,30 @@ print(way_df.columns)
 def get_coords(row):
 	nodes = []
 	nodinfo = []
+	relways= []
+	ways = row['members']
+	if len(ways) < WAYLIMIT:
+		for way in ways:
+			relways.append(way_df.loc[way_df['id']==way['ref']])
+	for way in relways:
+		try:
+		fnode = nod_df.loc[nod_df['id'] == way['nodes'][0]]
+		fnlat = fnode['lat']
+		fnlon = fnode['lon']
+		lnode = nod_df.loc[nod_df['id'] == way['nodes'][-1]]
+		lnlat = lnode['lat']
+		lnlon = lnode['lon']
+		waynodes.append((way['id'], fnlat, fnlon, lnlat, lnlon))
+	return waynodes
 
-	for way in row['members']:
-		waynodes = list(way_df.loc[way_df['id'] == way['ref']]['nodes'])
 
+			# print(node)
+
+		# waynodes = way_df.loc[way_df['id'] == way['ref']]['nodes']
+	# print(waynodes)
+	
+
+rel_df['waynodes'] = rel_df.apply(get_coords, axis=1)
 
 		# nodes.append(way_df.iloc(way_df['id'] == way['ref'])['nodes'])
 
@@ -87,7 +109,6 @@ def get_coords(row):
 
 # rel_df['nodes'] = rel_df.apply(get_coords, axis=1)
 
-# rel_df.apply(get_coords, axis=1)
 
 
 
