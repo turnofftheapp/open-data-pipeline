@@ -59,60 +59,25 @@ way_df = dfs[2]
 
 ##  IN: dataframe to apply function to, c is an iterator object (I think?)
 ## OUT: creates list of trail objects
-def get_coords(row):
+def transform_members(c):
 	nodes = []
-	nodinfo = []
-	relways= []
-	ways = row['members']
-	if len(ways) < WAYLIMIT:
-		for way in ways:
-			relways.append(way_df.loc[way_df['id']==way['ref']])
-	for way in relways:
+	error = []
+	for way in c['members']:
 		try:
-		fnode = nod_df.loc[nod_df['id'] == way['nodes'][0]]
-		fnlat = fnode['lat']
-		fnlon = fnode['lon']
-		lnode = nod_df.loc[nod_df['id'] == way['nodes'][-1]]
-		lnlat = lnode['lat']
-		lnlon = lnode['lon']
-		waynodes.append((way['id'], fnlat, fnlon, lnlat, lnlon))
-	return waynodes
+			w = list(way_df.loc[way_df['id'] == way['ref']]['nodes'])
+			fnode = nod_df.loc[nod_df['id']==w[0][0]]
+			lnode = nod_df.loc[nod_df['id']==w[0][-1]]
+			nodes.append((way['ref'], way['role'], fnode['lat'], fnode['lon'], lnode['lat'], lnode['lon']))
+		except Exception:
+			error.append(way)
+	return nodes
+
+rel_df['members'] = rel_df.apply(transform_members, axis=1)
+
+print(rel_df.head(5))
+			
 
 
-			# print(node)
-
-		# waynodes = way_df.loc[way_df['id'] == way['ref']]['nodes']
-	# print(waynodes)
-	
-
-rel_df['waynodes'] = rel_df.apply(get_coords, axis=1)
-
-		# nodes.append(way_df.iloc(way_df['id'] == way['ref'])['nodes'])
-
-	# print(nodes)
-	# print("----------")
-
-	# firstnode_id = list(wa.loc[wa['id'] == firstway_id]['nodes'])[0][0]
-	# firstnode_coords = nod.loc[nod['id'] == firstnode_id]
-	# begin_lat = float(firstnode_coords['lat'])
-	# begin_lon = float(firstnode_coords['lon'])
-	
-	# lastway_id = c['members'][-1]['ref']
-	# print(lastway_id)
-
-	# lastnode_id = list(wa.loc[wa['id'] == lastway_id]['nodes'])[0][-1]
-	# lastnode_coords = nod.loc[nod['id']==lastnode_id]
-	# end_lat = float(lastnode_coords['lat'])
-	# end_lon = float(lastnode_coords['lon'])
-	# return (begin_lat, begin_lon, end_lat, end_lon)		
-	# return nodes					
-
-# rel_df['nodes'] = rel_df.apply(get_coords, axis=1)
-
-
-
-
-# print(rel_df.apply(get_coords, axis=))
 # def main():
 # 	geoJelements_df = queryToDf()
 # 	print(geoJelements_df.head())
