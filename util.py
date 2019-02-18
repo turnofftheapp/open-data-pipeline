@@ -18,6 +18,7 @@ def getArea(country='US', region='MI'):
 	'''
 	pass
 
+
 ## To be applied to df
 ## IN: row iterator object (c)
 ## OUT: new column containing presence and location of bus stop, we will use this to designate a trailhead
@@ -49,6 +50,9 @@ def getElevation(c):
 		e = e1-e2
 		e_change.append(e)
 	return e_change
+
+
+	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
 
 
 
