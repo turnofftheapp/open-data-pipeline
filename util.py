@@ -18,7 +18,18 @@ def getArea(country='US', region='MI'):
 	'''
 	pass
 
-def getElevation(c, nod_df, way_df):
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: new column containing presence and location of bus stop, we will use this to designate a trailhead
+def getBus(c):
+	## for Sam; just implement what you did in jupyter here, then apply it in geoPipe's main method
+	pass
+
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: new col w int elevation_gain
+''' ISSUE: we still need to clarify how we determine "trail start" and "trail end"'''
+def getElevation(c):
 	base_url = "https://maps.googleapis.com/maps/api/elevation/json?locations="
 	gKey = "AIzaSyChXIQQQrzdfeuPPFgY_RQKSQZgvXdwTV8"
 	coords = []
