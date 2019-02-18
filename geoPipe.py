@@ -11,13 +11,20 @@ import os
 import util
 from pprint import pprint
 
-'''TODO: Add bug testing and possibly logging features'''
 DEBUG_MODE = False
-WAYLIMIT = 100
+# WAYLIMIT = 100
 requests_cache.install_cache('demo_cache')
 
+pd.set_option('display.max_colwidth', -1)
+pd.set_option('display.max_columns', 10)
+
+'''TODO: Add bug testing and possibly logging features'''
+DEBUG_MODE = False
+# WAYLIMIT = 100
+requests_cache.install_cache('demo_cache')
 
 pd.set_option('display.max_colwidth', -1)
+pd.set_option('display.max_columns', 10)
 
 # dataset for 1 trail
 # q = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
@@ -43,45 +50,55 @@ def queryToDf():
 	return geoJelements_df
 
 
-'''split elements into 3 dfs'''
 
-geoJelements_df = queryToDf()
-dfs = [x for _, x in geoJelements_df.groupby('type')]
-nod_df = dfs[0]
-rel_df = dfs[1]
-way_df = dfs[2]
-# print(rel_df.head(5))
-# print(nod_df.columns)
-# print(rel_df.columns)
-# print(way_df.columns)
-
-''' get start and end of every way in relation '''
 
 ## To be applied to DF:
 ##  IN: dataframe row object 
 ## OUT: list of node tuples
-def transform_members(c):
-	nodes = []
-	error = []
+def transform_members(c, way_df, nod_df):
+	ways = []
+	errors = []
 	for way in c['members']:
 		try:
 			w = list(way_df.loc[way_df['id'] == way['ref']]['nodes'])
 			fnode = nod_df.loc[nod_df['id']==w[0][0]]
 			lnode = nod_df.loc[nod_df['id']==w[0][-1]]
-			nodes.append((way['ref'], way['role'], fnode['lat'], fnode['lon'], lnode['lat'], lnode['lon']))
-		except Exception:
-			error.append(way)
-	return nodes
+			ways.append((way['ref'], way['role'], fnode['lat'], fnode['lon'], lnode['lat'], lnode['lon']))
+		except Exception as e:
+			print(e, c)
+			errors.append((e, c))
+	return ways
 
-rel_df['members'] = rel_df.apply(transform_members, axis=1)
 
+# geoJelements_df = queryToDf()
 
-			
-
+# dfs = [x for _, x in geoJelements_df.groupby('type')]
+# nod_df = dfs[0]
+# rel_df = dfs[1]
+# way_df = dfs[2]
+# print(nod_df, rel_df, way_df)
+# print("NOT IN MAIN: \n")
+# print(rel_df)
+# rel_df['members'] = rel_df.apply(transform_members, axis=1)
+# print(rel_df.head(5))
 
 def main():
+
+	# 1. query OSM and send results to df
 	geoJelements_df = queryToDf()
-	print(geoJelements_df.head())
+
+	# 2. split into 3 dfs by type 
+	dfs = [x for _, x in geoJelements_df.groupby('type')]
+	nod_df = dfs[0]
+	rel_df = dfs[1]
+	way_df = dfs[2]
+
+	
+	
+	# 3. transform relation df 'members' col to include direction, begin_lat, begin_lon, end_lat, end_lon
+	rel_df['members'] = rel_df.apply(transform_members, args=(way_df, nod_df), axis=1)
+
+	print(rel_df.head(5))
 
 if __name__ == '__main__':
     main()
