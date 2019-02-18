@@ -57,8 +57,9 @@ way_df = dfs[2]
 
 ''' get start and end of every way in relation '''
 
-##  IN: dataframe to apply function to, c is an iterator object (I think?)
-## OUT: creates list of trail objects
+## To be applied to DF:
+##  IN: dataframe row object 
+## OUT: list of node tuples
 def transform_members(c):
 	nodes = []
 	error = []
@@ -74,16 +75,16 @@ def transform_members(c):
 
 rel_df['members'] = rel_df.apply(transform_members, axis=1)
 
-print(rel_df.head(5))
+
 			
 
 
-# def main():
-# 	geoJelements_df = queryToDf()
-# 	print(geoJelements_df.head())
+def main():
+	geoJelements_df = queryToDf()
+	print(geoJelements_df.head())
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
 
 
 
