@@ -17,3 +17,27 @@ def getArea(country='US', region='MI'):
 	switch states and areas when querying.
 	'''
 	pass
+
+def getElevation(c, nod_df, way_df):
+	base_url = "https://maps.googleapis.com/maps/api/elevation/json?locations="
+	gKey = "AIzaSyChXIQQQrzdfeuPPFgY_RQKSQZgvXdwTV8"
+	coords = []
+	e_change = []
+	error = []
+	for way in c['members']:
+		try:
+			w = list(way_df.loc[way_df['id'] == way['ref']]['nodes'])
+			fnode = nod_df.loc[nod_df['id']==w[0][0]]
+			lnode = nod_df.loc[nod_df['id']==w[0][-1]]
+			coords.append((str(fnode['lat'])+","+str(fnode['lon']), str(lnode['lat'])+","+str(lnode['lon'])))
+		except Exception:
+			error.append(way)
+	for coord in coords:
+		e1 = base_url + coord[1] + "&key=" + gKey
+		e2 = base_url + coord[2] + "&key=" + gKey
+		e = e1-e2
+		e_change.append(e)
+	return e_change
+
+
+
