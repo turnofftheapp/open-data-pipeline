@@ -30,8 +30,9 @@ def queryToDf():
 	'''TODO: implement in util.py'''
 	# areaid = util.getArea(area)		
 	# areaid = '3600165789'
-
-	query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
+	query = '[out:json][timeout:25]; area(3600165789)->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
+	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'
+	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	pckg = {'data':query}
 	outs = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -100,7 +101,7 @@ def main():
 	# 3. new df from rel_df, including column containing ways, nodes + their respective data
 	trail_df = rel_df.apply(transform_members, args=(way_df, nod_df), axis=1)
 	trail_df = trail_df.dropna(axis=1, how='all')
-	print(trail_df)
+	print(trail_df.head())
 
 
 if __name__ == '__main__':
