@@ -6,17 +6,21 @@ import requests
 import requests_cache
 import json
 import os
+import math
+from tqdm import tqdm
+
 
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
 from pprint import pprint
 
 DEBUG_MODE = False
+STATE = "Michigan"
 # WAYLIMIT = 100
 requests_cache.install_cache('demo_cache')
 
 pd.set_option('display.max_colwidth', -1)
-pd.set_option('display.max_columns', 10)
+pd.set_option('display.max_columns', 100)
 
 # dataset for 1 trail
 # q = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
@@ -25,23 +29,36 @@ pd.set_option('display.max_columns', 10)
 
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
-def queryToDf():
+def queryToDf(state):
 	
 	'''TODO: implement in util.py'''
 	# areaid = util.getArea(area)		
 	# areaid = '3600165789'
-	query = '[out:json][timeout:25]; area(3600165789)->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
-	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'
+	area = util.getStateAreaId(state)
+	query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
+	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
 	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	pckg = {'data':query}
-	outs = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
-	geoJ = json.loads(outs.text)
+	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg, stream=True)
+	total_size = int(r.headers.get('content-length', 0))
+	block_size = 1024
+	wrote = 0
+
+	'''Caching'''
+	with open('Output/queryoutput.bin', 'wb') as f:
+		for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size//block_size), unit='KB', unit_scale=True):
+			wrote = wrote  + len(data)
+			f.write(data)
+
+
+	geoJ = json.loads(r.text)
 	geoJelements = geoJ['elements']
 
 
 	geoJelements_df = pd.DataFrame(geoJelements)
 	return geoJelements_df
+
 
 ## To be applied to DF:
 ##  IN: dataframe row object 
@@ -65,7 +82,7 @@ def transform_members(c, way_df, nod_df):
 				try: 
 					tags = list(dict(w['tags']).values())[0]
 				except Exception:
-					"this only happens if there aren't tags to begin with"
+					#this only happens if there aren't tags to begin with
 					tags = []
 				way = {'id':way_id, 'tags':tags, 'role':role}
 			# way = {'id':int(w['id']), 'tags':list(dict(w['tags']).values())[0]}
@@ -73,7 +90,7 @@ def transform_members(c, way_df, nod_df):
 
 				for node in list(w['nodes'])[0]:
 					n = nod_df.loc[nod_df['id'] == node]
-					node = {'id':n['id'], 'lat':n['lat'], 'lon':n['lon']}
+					node = {'id':int(n['id']), 'lat':float(n['lat']), 'lon':float(n['lon'])}
 					nodes.append(node)
 
 			except Exception as e:
@@ -87,10 +104,18 @@ def transform_members(c, way_df, nod_df):
 
 
 
+
+
 def main():
+	print("Getting trails for {}".format(STATE))
+
+	# tqdm means "progress" in Arabic, this guy wraps iterables and predicts the time it'll take to run. 
+	# Because we're doing all our transformations with cython functions, we dont need to touch code in the functions
+	# to change tqdm's behavior. 
+	tqdm.pandas()
 
 	# 1. query OSM and send results to df
-	geoJelements_df = queryToDf()
+	geoJelements_df = queryToDf(STATE)
 
 	# 2. split into 3 dfs by type 
 	dfs = [x for _, x in geoJelements_df.groupby('type')]
@@ -98,10 +123,22 @@ def main():
 	rel_df = dfs[1]
 	way_df = dfs[2]
 	print("found ",len(rel_df), " trails!")
+
 	# 3. new df from rel_df, including column containing ways, nodes + their respective data
-	trail_df = rel_df.apply(transform_members, args=(way_df, nod_df), axis=1)
+	print("transforming relations to trails")
+	trail_df = rel_df.progress_apply(transform_members, args=(way_df, nod_df), axis=1)
 	trail_df = trail_df.dropna(axis=1, how='all')
-	print(trail_df.head())
+	# trail_df.to_csv(r'Output/trails.csv')
+
+	# 4. validate trail dataframe
+	print("validating trails")
+	trail_df = trail_df.progress_apply(util.validate_trails, axis=1)
+
+	# 5. name trails
+	print("naming trails")
+	trail_df = trail_df.progress_apply(util.get_name, axis=1)
+	# print(trail_df)
+
 
 
 if __name__ == '__main__':
