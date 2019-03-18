@@ -55,8 +55,32 @@ def getRoundTripDist(c):
 	'''For each relation: need to eval if trail is a loop or not, then figure out how to calc dist'''
 	pass
 
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: fixes bad data
+def validate_trails(c):
+	## make sure trails that don't have tags get an empty list
+	if type(c['tags']) not in [list, dict, str]:
+		c['tags'] = []
+	return c
 
-
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: new col w name (from relation tags)
+def get_name(c):
+	errors = []
+	tags = c['tags']
+	try:
+		if "name" in tags:
+			c['name'] = tags['name']
+		elif "ref" in tags:
+			c['name'] = tags['ref']
+		else:
+			c['name'] = ""
+	except Exception as e:
+		print("error, ", e, "on trail: ", c)
+	# print("errors: ", errors)
+	return c
 
 
 
