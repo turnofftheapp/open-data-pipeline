@@ -49,7 +49,9 @@ def getElevation(c):
 	return e_change
 
 def getRoundTripDist(c):
-	'''For each relation: need to eval if trail is a loop or not, then figure out how to calc dist'''
+	'''use info from shape column,
+	   could use google libraries
+	   once we geocode'''
 	pass
 
 ## To be applied to df
@@ -93,7 +95,10 @@ def get_shape(c):
 		return c
 	except Exception as e:
 		print("ERROR on get_shape:\n", str(e) + "\n", str(c), "\n")
-	
+
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: values in end_lat and end_lon for loop trails, N/A for those without.
 def get_trail_end(c):
 	c['end_lat'] = None
 	c['end_lon'] = None
