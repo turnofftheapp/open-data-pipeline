@@ -6,8 +6,6 @@ import requests
 import json
 import os
 
-
-
 ## IN: country, region
 ## OUT: Overpass region code
 def getStateAreaId(state_full_name):
@@ -85,16 +83,24 @@ def get_name(c):
 ## IN: row iterator object (c)
 ## OUT: new col "shape" with either "loop" or "out and back" as values
 def get_shape(c):
-	fnode = c['nodes'][0]['id']
-	lnode = c['nodes'][-1]['id']
-	if fnode == lnode:
-		c['shape'] = "loop"
-		print("loop")
-	else:
-		c['shape'] = "out and back"
-		print("out and back")
-	return c
+	try:
+		fnode = c['nodes'][0]['id']
+		lnode = c['nodes'][-1]['id']
+		if fnode == lnode:
+			c['shape'] = "loop"
+		else:
+			c['shape'] = "out and back"
+		return c
+	except Exception as e:
+		print("ERROR on get_shape:\n", str(e) + "\n", str(c), "\n")
 	
+def get_trail_end(c):
+	c['end_lat'] = None
+	c['end_lon'] = None
+	if c['shape'] == "loop":
+		c['end_lat'] = float(c['nodes'][-1]['lat'])
+		c['end_lon'] = float(c['nodes'][-1]['lon'])
+	return c
 	
 
 

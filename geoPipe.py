@@ -35,9 +35,9 @@ def queryToDf(state):
 	# areaid = util.getArea(area)		
 	# areaid = '3600165789'
 	area = util.getStateAreaId(state)
-	# query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
-	# ["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
-	query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
+	query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
+	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
+	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	pckg = {'data':query}
 	
@@ -53,8 +53,8 @@ def queryToDf(state):
 		for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size//block_size) , unit='KB', unit_scale=True):
 			wrote = wrote  + len(data)
 			f.write(data)
-	if total_size != 0 and wrote != total_size:
-		print("ERROR, something went wrong")  
+	# if total_size != 0 and wrote != total_size:
+	# 	print("ERROR, something went wrong")  
 
 	geoJ = json.loads(r.text)
 	geoJelements = geoJ['elements']
@@ -72,36 +72,46 @@ def transform_members(c, way_df, nod_df):
 	nodes = []
 	errors = []
 	badways = []
+
+	# To find the type of each member, we first need to know what key is used (sometimes 'role' is used instead of 'type')
 	for way in c['members']:
-		if way['type'] == "node":
-			badways.append((c['id'], way))
-			break
-		elif way['type'] == "way":
-			try:
-				w = way_df.loc[way_df['id'] == way['ref']]
-				way_id = int(w['id'])
+		if way['type'] != '':
+			way_obj = way['type']
+		elif way['role'] != '':
+			way_obj = way['role']
 
-				way_tags = list(dict(w['tags']).values())
-				role = str(w['type'])
-				try: 
-					tags = list(dict(w['tags']).values())[0]
-				except Exception:
-					#this only happens if there aren't tags to begin with
-					tags = []
-				way = {'id':way_id, 'tags':tags, 'role':role}
-			# way = {'id':int(w['id']), 'tags':list(dict(w['tags']).values())[0]}
-				ways.append(way)
+	# Now, catch bad data where nodes are included in members instead of ways
+	if way_obj == "node":
+		badways.append((c['id'], way))
+		# print("bad obj", c)
 
-				for node in list(w['nodes'])[0]:
-					n = nod_df.loc[nod_df['id'] == node]
-					node = {'id':int(n['id']), 'lat':float(n['lat']), 'lon':float(n['lon'])}
-					nodes.append(node)
+	# If the object is a way, 
+	elif way_obj == "way":
+		try:
+			w = way_df.loc[way_df['id'] == way['ref']]
+			way_id = int(w['id'])
+			way_tags = list(dict(w['tags']).values())
+			obj_type = str(w['type'])
+			try: 
+				tags = list(dict(w['tags']).values())[0]
+			except Exception:
+				#this only happens if there aren't tags to begin with
+				tags = []
+			way = {'id':way_id, 'tags':tags, 'role':obj_type}
+		# way = {'id':int(w['id']), 'tags':list(dict(w['tags']).values())[0]}
+			ways.append(way)
 
-			except Exception as e:
-				errors.append((e, c))
-				print("way error: ", e, " on: \n")
-				print(c)
-				print("*************************")
+			for node in list(w['nodes'])[0]:
+				n = nod_df.loc[nod_df['id'] == node]
+				node = {'id':int(n['id']), 'lat':float(n['lat']), 'lon':float(n['lon'])}
+				nodes.append(node)
+		except Exception as e:
+			errors.append((e, c))
+			print("way error: ", e, " on: \n")
+			print(c)
+			print("*************************")
+
+
 	c['ways'] = ways
 	c['nodes'] = nodes
 	return c
@@ -111,7 +121,8 @@ def transform_members(c, way_df, nod_df):
 
 
 def main():
-	print("Getting trails for {}".format(STATE))
+
+	print("Requesting trails for {}".format(STATE))
 
 	# tqdm means "progress" in Arabic, this guy wraps iterables and predicts the time it'll take to run. 
 	# Because we're doing all our transformations with cython functions, we dont need to touch code in the functions
@@ -139,12 +150,15 @@ def main():
 	trail_df = trail_df.progress_apply(util.validate_trails, axis=1)
 
 	# 5. name trails
-	print("naming trails")
 	trail_df = trail_df.progress_apply(util.get_name, axis=1)
 	# print(trail_df)
-	# 6. Loop or out-and-back
+
+	# 6. Loop or out-and-back, end lat and lon if loop
 	trail_df = trail_df.progress_apply(util.get_shape, axis=1)
+	# trail_df = trail_df.progress_apply(util.get_trail_end, axis=1)
 	print(trail_df)
+
+	#7. 
 
 
 if __name__ == '__main__':
@@ -157,7 +171,6 @@ DISCUSSION
 1. Is what OSM returns geoJSON? 
 2. How do we define trailstart and trailend (maybe w bustop proximity, tho we're using the default rel start and end vals)
 3. How to me plot this, given the current data structure (rel_df)? 
-
 '''
 
 
