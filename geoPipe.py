@@ -35,22 +35,26 @@ def queryToDf(state):
 	# areaid = util.getArea(area)		
 	# areaid = '3600165789'
 	area = util.getStateAreaId(state)
-	query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
-	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
-	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
+	# query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
+	# ["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
+	query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	pckg = {'data':query}
-	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg, stream=True)
-	total_size = int(r.headers.get('content-length', 0))
-	block_size = 1024
-	wrote = 0
-
+	
 	'''Caching'''
+	# Streaming, so we can iterate over the response.
+	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg, stream=True)
+	# Total size in bytes.
+	total_size = int(r.headers.get('content-length', 0)); 
+	block_size = 1024
+	wrote = 0 
+
 	with open('Output/queryoutput.bin', 'wb') as f:
-		for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size//block_size), unit='KB', unit_scale=True):
+		for data in tqdm(r.iter_content(block_size), total=math.ceil(total_size//block_size) , unit='KB', unit_scale=True):
 			wrote = wrote  + len(data)
 			f.write(data)
-
+	if total_size != 0 and wrote != total_size:
+		print("ERROR, something went wrong")  
 
 	geoJ = json.loads(r.text)
 	geoJelements = geoJ['elements']
@@ -75,10 +79,10 @@ def transform_members(c, way_df, nod_df):
 		elif way['type'] == "way":
 			try:
 				w = way_df.loc[way_df['id'] == way['ref']]
-				way_id = 0
+				way_id = int(w['id'])
 
 				way_tags = list(dict(w['tags']).values())
-				role = way['role']
+				role = str(w['type'])
 				try: 
 					tags = list(dict(w['tags']).values())[0]
 				except Exception:
@@ -138,7 +142,9 @@ def main():
 	print("naming trails")
 	trail_df = trail_df.progress_apply(util.get_name, axis=1)
 	# print(trail_df)
-
+	# 6. Loop or out-and-back
+	trail_df = trail_df.progress_apply(util.get_shape, axis=1)
+	print(trail_df)
 
 
 if __name__ == '__main__':
