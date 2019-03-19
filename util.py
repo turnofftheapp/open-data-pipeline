@@ -29,7 +29,6 @@ def getBus(c):
 ## IN: row iterator object (c)
 ## OUT: new col w int elevation_gain
 ''' ISSUE: we still need to clarify how we determine "trail start" and "trail end"'''
-
 def getElevation(c):
 	base_url = "https://maps.googleapis.com/maps/api/elevation/json?locations="
 	gKey = "AIzaSyChXIQQQrzdfeuPPFgY_RQKSQZgvXdwTV8"
@@ -82,6 +81,21 @@ def get_name(c):
 	# print("errors: ", errors)
 	return c
 
+## To be applied to df
+## IN: row iterator object (c)
+## OUT: new col "shape" with either "loop" or "out and back" as values
+def get_shape(c):
+	fnode = c['nodes'][0]['id']
+	lnode = c['nodes'][-1]['id']
+	if fnode == lnode:
+		c['shape'] = "loop"
+		print("loop")
+	else:
+		c['shape'] = "out and back"
+		print("out and back")
+	return c
+	
+	
 
 
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
