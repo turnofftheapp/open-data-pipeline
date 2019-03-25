@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
-from pprint import pprint
 
 DEBUG_MODE = False
 STATE = "Michigan"
@@ -122,6 +121,7 @@ def main():
 	geoJelements_df = queryToDf(STATE)
 
 	# 2. split into 3 dfs by type 
+	print("processing response...")
 	dfs = [x for _, x in geoJelements_df.groupby('type')]
 	nod_df = dfs[0]
 	rel_df = dfs[1]
