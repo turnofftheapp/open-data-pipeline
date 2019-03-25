@@ -30,19 +30,13 @@ pd.set_option('display.max_columns', 100)
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
 def queryToDf(state):
-	
-	'''TODO: implement in util.py'''
-	# areaid = util.getArea(area)		
-	# areaid = '3600165789'
+
 	area = util.getStateAreaId(state)
 	query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
 	["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
 	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	pckg = {'data':query}
-	
-	'''Caching'''
-	# Streaming, so we can iterate over the response.
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg, stream=True)
 	# Total size in bytes.
 	total_size = int(r.headers.get('content-length', 0)); 
@@ -59,7 +53,6 @@ def queryToDf(state):
 	geoJ = json.loads(r.text)
 	geoJelements = geoJ['elements']
 
-
 	geoJelements_df = pd.DataFrame(geoJelements)
 	return geoJelements_df
 
@@ -71,8 +64,6 @@ def transform_members(c, way_df, nod_df):
 	ways = []
 	nodes = []
 	errors = []
-	badways = []
-
 	# To find the type of each member, we first need to know what key is used (sometimes 'role' is used instead of 'type')
 	for way in c['members']:
 		if way['type'] != '':
@@ -82,8 +73,7 @@ def transform_members(c, way_df, nod_df):
 
 	# Now, catch bad data where nodes are included in members instead of ways
 	if way_obj == "node":
-		badways.append((c['id'], way))
-		# print("bad obj", c)
+		errors.append((c['id'], way))
 
 	# If the object is a way, 
 	elif way_obj == "way":
@@ -98,7 +88,6 @@ def transform_members(c, way_df, nod_df):
 				#this only happens if there aren't tags to begin with
 				tags = []
 			way = {'id':way_id, 'tags':tags, 'role':obj_type}
-		# way = {'id':int(w['id']), 'tags':list(dict(w['tags']).values())[0]}
 			ways.append(way)
 
 			for node in list(w['nodes'])[0]:
@@ -107,9 +96,9 @@ def transform_members(c, way_df, nod_df):
 				nodes.append(node)
 		except Exception as e:
 			errors.append((e, c))
-			print("way error: ", e, " on: \n")
-			print(c)
-			print("*************************")
+			# print("way error: ", e, " on: \n")
+			# print(c)
+			# print("*************************")
 
 
 	c['ways'] = ways
@@ -142,6 +131,7 @@ def main():
 	# 3. new df from rel_df, including column containing ways, nodes + their respective data
 	print("transforming relations to trails")
 	trail_df = rel_df.progress_apply(transform_members, args=(way_df, nod_df), axis=1)
+
 	trail_df = trail_df.dropna(axis=1, how='all')
 	# trail_df.to_csv(r'Output/trails.csv')
 
@@ -150,15 +140,21 @@ def main():
 	trail_df = trail_df.progress_apply(util.validate_trails, axis=1)
 
 	# 5. name trails
+	print("naming trails")
 	trail_df = trail_df.progress_apply(util.get_name, axis=1)
 	# print(trail_df)
 
-	# 6. Loop or out-and-back, end lat and lon if loop
-	trail_df = trail_df.progress_apply(util.get_shape, axis=1)
-	# trail_df = trail_df.progress_apply(util.get_trail_end, axis=1)
-	print(trail_df)
+	# 6. Determind shape: oop or out-and-back, get end lat and lon if loop
+	trail_df = trail_df.apply(util.get_shape, axis=1)
+	trail_df = trail_df.apply(util.get_trail_end, axis=1)
 
-	#7. 
+	# 7. Remove bad trails
+	'''
+	criteria: no name, ways or nodes out of bounds, no tags
+	'''
+	print("removing false positives")
+	trail_df = trail_df[trail_df['issues'].map(len) == 0]
+	print(trail_df)
 
 
 if __name__ == '__main__':
