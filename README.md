@@ -1,6 +1,7 @@
  open-data-pipeline 
 
 
+(Python 3)
 How To Run: (from /open-data-pipeline/)
 1. install dependencies:
 	<pip install -r requirements.txt>
