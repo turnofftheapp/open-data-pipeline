@@ -21,6 +21,7 @@ STATE = "Michigan"
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.max_columns', 100)
 pd.set_option('display.max_rows', 100000)
+pd.set_option('display.width', 1000)
 
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
@@ -38,10 +39,8 @@ def queryToDf(state):
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
 
 	geoJ = json.loads(r.text)
-	geoJelements = geoJ['elements']
-
-	geoJelements_df = pd.DataFrame(geoJelements)
-	return geoJelements_df
+	
+	return geoJ
 
 
 ## To be applied to DF:
@@ -51,9 +50,11 @@ def transform_members(c, way_df, nod_df):
 	ways = []
 	nodes = []
 	errors = []
+	geoJSON = {"type":"MultiLineString", "coordinates": []}
 
 	# To find the type of each member, we first need to know what key is used (sometimes 'role' is used instead of 'type')
 	for way in c['members']:
+		coordinates = []
 		if way['type'] != '':
 			way_obj = way['type']
 		elif way['role'] != '':
@@ -63,7 +64,7 @@ def transform_members(c, way_df, nod_df):
 		if way_obj == "node":
 			errors.append((c['id'], way))
 
-		# If the object is a way, 
+		# If the object is a way...
 		elif way_obj == "way":
 			try:
 				w = way_df.loc[way_df['id'] == way['ref']]
@@ -81,10 +82,13 @@ def transform_members(c, way_df, nod_df):
 				for node in list(w['nodes'])[0]:
 					n = nod_df.loc[nod_df['id'] == node]
 					node = {'id':int(n['id']), 'lat':float(n['lat']), 'lon':float(n['lon'])}
+					coord = [float(n['lon']), float(n['lat'])]
 					nodes.append(node)
+					coordinates.append(coord)
 			except Exception as e:
 				errors.append((e, c))
-
+		geoJSON['coordinates'].append(coordinates)
+	c['geoJSON'] = geoJSON
 	c['ways'] = ways
 	c['nodes'] = nodes
 	return c
@@ -103,20 +107,26 @@ def main():
 	tqdm.pandas()
 
 	# 1. query OSM and send results to df
-	geoJelements_df = queryToDf(STATE)
+	geoJ = queryToDf(STATE)
+	geoJelements = geoJ['elements']
+
+	geoJelements_df = pd.DataFrame(geoJelements)
+
 	# with open('raw.txt', "w") as f:
 	# 	f.write(str(geoJelements_df))
-	# 2. split into 3 dfs by type 
-
+	#2. split into 3 dfs by type 
+	
 	print("processing response...")
 	dfs = [x for _, x in geoJelements_df.groupby('type')]
 
 	nod_df = dfs[0]
 	rel_df = dfs[1]
 	way_df = dfs[2]
-	print("found ",len(rel_df), " trails!")
 
-	# 3. new df from rel_df, including column containing ways, nodes + their respective data
+
+	# print("found ",len(rel_df), " trails!")
+
+	# 3. new df from rel_df, including column containing ways, nodes + their respective data, also gets geoJSON
 	print("transforming relations to trails")
 	trail_df = rel_df.progress_apply(transform_members, args=(way_df, nod_df), axis=1)
 
@@ -148,7 +158,7 @@ def main():
 
 
 	print(trail_df.columns)
-	print(trail_df)
+	print(trail_df['geoJSON'])
 
 
 if __name__ == '__main__':
