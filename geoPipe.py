@@ -3,17 +3,19 @@
 ###### Version 1 ######
 import pandas as pd
 import requests
-import requests_cache
 import json
 import os
 import math
 from tqdm import tqdm
 
 
+## Add ability to collect user input
+
+
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 STATE = "Michigan"
 # WAYLIMIT = 100
 # requests_cache.install_cache('demo_cache')
@@ -25,77 +27,91 @@ pd.set_option('display.width', 1000)
 
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
-def queryToDf(state):
+def queryOSM(state):
 
 	area = util.get_state_area_id(state)
 
-	# commented queries are smaller and used for development only
+		# big query
+	# query = '[out:json][timeout:25]; \
+	# 		area(3600165789)->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# 		(area.searchArea););(._;>;);out;'
+		# lil testing query
+	# query = '[out:json][timeout:25];  \
+	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# 		(44.14575420090964,-84.83779907226562,44.583620922396136,-84.04129028320312););(._;>;);out;'
+
+		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
+	query = '[out:json][timeout:25]; \
+			(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+			(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
+	## the following queries get relations, and treat relations as ways.
 	# query = '[out:json][timeout:25]; area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]\
 	# ["name"~"trail|Trail|Hiking|hiking"](area.searchArea);<;);(._;>;);out;'.format(area)
-	query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
+	# query = '[out:json][timeout:25];area(3600165789)->.searchArea;relation["route"="hiking"](area.searchArea);(._;>;);out;'
 	# query = '[out:json][timeout:25];relation["route"="hiking"](46.561516046166,-87.437782287598,46.582255876979,-87.39284992218);(._;>;);out;'
 	
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
+	osmResponse = json.loads(r.text)
+	osmElements = osmResponse['elements']
+	return osmElements
 
-	geoJ = json.loads(r.text)
-	
-	return geoJ
-
-
-## To be applied to DF:
-##  IN: dataframe row object 
-## OUT: list of nodes in relation
-def transform_members(c, way_df, nod_df):
-	ways = []
+def splitElements(osmElements):
 	nodes = []
-	errors = []
-	geoJSON = {"type":"MultiLineString", "coordinates": []}
+	ways = []
+	garbage = []
+	for element in osmElements:
+		if element['type'] == 'node':
+			nodes.append(element)
+		elif element['type'] == 'way':
+			ways.append(element)
+		else:
+			garbage.append(element)
 
-	# To find the type of each member, we first need to know what key is used (sometimes 'role' is used instead of 'type')
-	for way in c['members']:
-		coordinates = []
-		if way['type'] != '':
-			way_obj = way['type']
-		elif way['role'] != '':
-			way_obj = way['role']
+	if DEBUG_MODE == True:
+		print('splitElements returned \n' + 
+			str(len(ways)) + " ways, " + str(len(nodes)) + " nodes, and " 
+			+ str(len(garbage)) + " bad elements")
 
-		# Now, catch bad data where nodes are included in members instead of ways
-		if way_obj == "node":
-			errors.append((c['id'], way))
+	return((ways, nodes))
 
-		# If the object is a way...
-		elif way_obj == "way":
-			try:
-				w = way_df.loc[way_df['id'] == way['ref']]
-				way_id = int(w['id'])
-				way_tags = list(dict(w['tags']).values())
-				obj_type = str(w['type'])
-				try: 
-					tags = list(dict(w['tags']).values())[0]
-				except Exception:
-					#this only happens if there aren't tags to begin with
-					tags = []
-				way = {'id':way_id, 'tags':tags, 'role':obj_type}
-				ways.append(way)
 
-				for node in list(w['nodes'])[0]:
-					n = nod_df.loc[nod_df['id'] == node]
-					node = {'id':int(n['id']), 'lat':float(n['lat']), 'lon':float(n['lon'])}
-					coord = [float(n['lon']), float(n['lat'])]
-					nodes.append(node)
-					coordinates.append(coord)
-			except Exception as e:
-				errors.append((e, c))
-		geoJSON['coordinates'].append(coordinates)
-	c['geoJSON'] = geoJSON
-	c['ways'] = ways
-	c['nodes'] = nodes
+def injectNodes(c, node_df):
+	"""Replaces each node ID within each way's 'nodes' list with the actual node (ID, lat, lon)
+
+	Args:
+		c: an iterable cython object representing a row in a dataframe
+		node_df: a dataframe of nodes
+
+	Returns:
+		new column 'nodes' containing list of nodes dicts 
+
+	Example:
+		
+		[2873296545, 2873296546] 
+						to
+		[{'id': 2873296545, 'lat': 44.554065, 'lon': -84.619785 }, 
+		{'id': 2873296546, 'lat': 44.553882, 'lon': -84.621017}]
+
+	"""
+	node_objs = []
+	for node in c['nodes']:
+		n = node_df.loc[node_df['id'] == node]
+		node_objs.append({
+			'id': int(n['id']),
+			'lat': float(n['lat']),
+			'lon': float(n['lon'])
+			})
+	c['nodes'] = node_objs
 	return c
 
-
-
-
+def get_name(c):
+	try:
+		name = c['tags']['name']
+	except Exception as e: 
+		print('ERROR, '+ e + "on trail: " + c)
+	c['name'] = str(name)
+	return c
 
 def main():
 
@@ -106,63 +122,38 @@ def main():
 	# to change tqdm's behavior. 
 	tqdm.pandas()
 
-	# 1. query OSM and send results to df
-	geoJ = queryToDf(STATE)
-	geoJelements = geoJ['elements']
+	# 1. query OSM and get list of elements
+	print("querying ways from OSM")
+	osmElements = queryOSM(STATE)
 
-	geoJelements_df = pd.DataFrame(geoJelements)
+	#2. split OSM elements into ways and nodes
+	ways_and_nodes = splitElements(osmElements)
+	ways = ways_and_nodes[0]
+	nodes = ways_and_nodes[1]
 
-	# with open('raw.txt', "w") as f:
-	# 	f.write(str(geoJelements_df))
-	#2. split into 3 dfs by type 
-	
-	print("processing response...")
-	dfs = [x for _, x in geoJelements_df.groupby('type')]
-
-	nod_df = dfs[0]
-	rel_df = dfs[1]
-	way_df = dfs[2]
+	way_df = pd.DataFrame(ways)
+	node_df = pd.DataFrame(nodes)
 
 
-	# print("found ",len(rel_df), " trails!")
 
-	# 3. new df from rel_df, including column containing ways, nodes + their respective data, also gets geoJSON
-	print("transforming relations to trails")
-	trail_df = rel_df.progress_apply(transform_members, args=(way_df, nod_df), axis=1)
+	# get all nodes lat and lon for each way
+	print("injecting node coordinates into ways")
+	trail_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
 
-	trail_df = trail_df.dropna(axis=1, how='all')
-	# trail_df.to_csv(r'Output/trails.csv')
-
-	# 4. validate trail dataframe
-	print("validating trails")
-	trail_df = trail_df.progress_apply(util.validate_trails, axis=1)
-
-	# 5. name trails
+	# name each trail:
 	print("naming trails")
-	trail_df = trail_df.progress_apply(util.get_name, axis=1)
-	# print(trail_df)
-
-	# 6. Determind shape: loop or out-and-back, get end lat and lon if loop
-	trail_df = trail_df.apply(util.get_shape, axis=1)
-	trail_df = trail_df.apply(util.get_trail_end, axis=1)
-
-	# 7. Remove bad trails
-	'''
-	criteria: no name, ways or nodes out of bounds, no tags
-	'''
-	print("removing false positives")
-	trail_df = trail_df[trail_df['issues'].map(len) == 0]
-
-	print("encoding polyline")
-	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
-
-
+	trail_df = trail_df.progress_apply(get_name, axis=1)
 	print(trail_df.columns)
-	print(trail_df['geoJSON'])
+	print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
+
+
+
+
 
 
 if __name__ == '__main__':
 	main()
+
 
 
 
