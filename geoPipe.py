@@ -28,13 +28,13 @@ pd.set_option('display.width', 1000)
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
 def queryOSM(state):
-	"""Splits returned OSM elements into list of ways and list of nodes
+	"""Sends a get request to OSM servers > response
 
 	Args:
-		osmElements: list of nodes and ways returned from OSM query
+		state: state to feed to util.get_state_area which returns OSM polygon of U.S. state
 
 	Returns:
-		tuple containing (list of ways, list of nodes)
+		list of elements returned from OSM
 	"""
 
 	area = util.get_state_area_id(state)
@@ -116,16 +116,27 @@ def injectNodes(c, node_df):
 	c['nodes'] = node_objs
 	return c
 
-def get_name(c):
-	try:
-		name = c['tags']['name']
-	except Exception as e: 
-		print('ERROR, '+ e + "on trail: " + c)
-	c['name'] = str(name)
-	return c
+def group_trails(trail_df):
+	trail_ways = []
+	for trail in trail_df.name.unique():
+		trail_ways.append(trail_df[trail_df["name"] == trail].nodes)
+	return trail_ways
+
+def order_trail_ways(trail_groups):
+	for group in trail_groups:
+		group = list(group)
+		print(group)
+		print(type(group))
+
 
 def main():
-
+	""" Executes pipeline logic
+	Process:
+			1) queries OSM 
+			2) splits OSM elements by type (way or node), then creates dataframes for each
+			3) For each node in each way, replace the node ID with an dict object of: ID, lat, lon
+			4) Names each trail from tags
+	"""
 	print("Requesting trails for {}".format(STATE))
 
 	# tqdm means "progress" in Arabic, this guy wraps iterables and predicts the time it'll take to run. 
@@ -137,7 +148,8 @@ def main():
 	print("querying ways from OSM")
 	osmElements = queryOSM(STATE)
 
-	#2. split OSM elements into ways and nodes
+	# 2. split OSM elements into ways and nodes
+	print("splitting elements")
 	ways_and_nodes = splitElements(osmElements)
 	ways = ways_and_nodes[0]
 	nodes = ways_and_nodes[1]
@@ -146,16 +158,21 @@ def main():
 	node_df = pd.DataFrame(nodes)
 
 
-
+	# 3. 
 	# get all nodes lat and lon for each way
 	print("injecting node coordinates into ways")
 	trail_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
 
-	# name each trail:
+	# 4. name each trail
 	print("naming trails")
-	trail_df = trail_df.progress_apply(get_name, axis=1)
+	trail_df = trail_df.progress_apply(util.get_name, axis=1)
 	print(trail_df.columns)
-	print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
+	# print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
+
+	# 5. Get unique trail names
+	trail_groups = group_trails(trail_df)
+
+	order_trail_ways(trail_groups)
 
 
 
@@ -164,16 +181,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
-
-
-
-'''
-DISCUSSION
-1. Is what OSM returns geoJSON? 
-2. How do we define trailstart and trailend (maybe w bustop proximity, tho we're using the default rel start and end vals)
-3. How to me plot this, given the current data structure (rel_df)? 
-'''
-
-
 

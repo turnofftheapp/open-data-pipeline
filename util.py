@@ -6,6 +6,9 @@ import requests
 import json
 import os
 import polyline
+from geopy.distance import distance
+from shapely.geometry import LineString
+
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -57,22 +60,21 @@ def validate_trails(c):
 		c['issues'].append("out of bounds")
 	return c
 
-## To be applied to df
-## IN: row iterator object (c)
-## OUT: new col w name (from relation tags)
+
 def get_name(c):
-	tags = c['tags']
-	c['name'] = ""
+	"""creates new column name for each row of dataframe, fills with name string from tags object
+
+	Args:
+		c: cython iterator object representing each row in the trails dataframe
+
+	Returns:
+		new column with trail name
+	"""
 	try:
-		if "name" in tags:
-			c['name'] = tags['name']
-		elif "ref" in tags:
-			c['name'] = tags['ref']
-		else:
-			c['issues'].append("no name")
-	except Exception as e:
-		print("get_name error, ", e, "on trail: ", c.id)
-	# print("errors: ", errors)
+		name = c['tags']['name']
+	except Exception as e: 
+		print('ERROR, '+ e + "on trail: " + c)
+	c['name'] = str(name)
 	return c
 
 ## To be applied to df
@@ -104,15 +106,94 @@ def get_trail_end(c):
 		c['end_lon'] = float(c['nodes'][-1]['lon'])
 	return c
 
+## FIX: take from geoJSON ***
 def get_polyline(c, precision=5):
 	nodes = []
 	for node in c['nodes']:
-		nodes.append((float(node['lon']), float(node['lat'])))
+		nodes.append((float(node['lat']), float(node['lon'])))
 	c['polyline'] = polyline.encode(nodes, precision)
 	return c
 
+## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
+def get_distance(c):
+	# multiLine= []
+	# length = 0
+	# for lineString in c['geoJSON']['coordinates']:
+	# 	length += line_length(lineString)
+	# c['trail_distance_meters'] = length
+	# length = 0
+	pass
+	# return c
 
 
+	# for node in c['nodes']:
+	# 	## for geopy we need to reverse the order of the coords
+	# 	multiLine.append((float(node['lat']), float(node['lon'])))
+	# for line in multiLine:
+	# 	length += line_length(line)
+	
+	# c['trail_distance_meters'] = length
+	# length = 0
+	# return c
+
+
+
+## borrowed from stackexchange
+def line_length(line):
+	"""Length of a line in meters, given in geographic coordinates
+
+	Args:
+		line: a shapely LineString object with WGS-84 coordinates
+
+	Returns:
+		Length of line in meters
+	"""
+
+	return sum(distance(a, b).miles for (a, b) in pairs(line))
+
+
+def pairs(lineString):
+	"""Iterate over a list in overlapping pairs without wrap-around.
+
+	Args:
+		lst: an iterable/list
+
+	Returns:
+		Yields a pair of consecutive elements (lst[k], lst[k+1]) of lst. Last 
+		call yields the last two elements.
+
+	Example:
+		lst = [4, 7, 11, 2]
+		pairs(lst) yields (4, 7), (7, 11), (11, 2)
+
+	Source:
+		https://stackoverflow.com/questions/1257413/1257446#1257446
+	"""
+	i = iter(lineString)
+	prev = next(i)
+	for item in i:
+		yield prev, item
+		# print("TESTING")
+		# print(prev, item)
+		prev = item
+	
+# smalltrail =  [
+#  	[
+#  		[-83.3248197, 42.6179619], [-83.326194, 42.616364], [-83.329406, 42.613143], [-83.331711, 42.610831], [-83.3324881, 42.6101564], [-83.3324563, 42.6100763], [-83.3324207, 42.6099865], [-83.3323492, 42.6098826], [-83.3326765, 42.6097874], [-83.3330192, 42.6096741], [-83.335751, 42.607295], [-83.336501, 42.606639], [-83.337241, 42.605991], [-83.3375172, 42.6057254], [-83.338312, 42.604961], [-83.3390532, 42.6042904]
+#  	], 
+#  	[
+#  		[-83.3390532, 42.6042904], [-83.3394562, 42.6039251], [-83.339836, 42.6036025], [-83.3403916, 42.6031362], [-83.3410182, 42.6026624]
+#  	]
+#  ]
+
+# p = []
+# for linestring in smalltrail:
+# 	p.append(pairs(linestring))
+# print(p)
+# p = []
+# for pair in pairs([[[-83.3248197, 42.6179619], [-83.326194, 42.616364], [-83.329406, 42.613143], [-83.331711, 42.610831], [-83.3324881, 42.6101564], [-83.3324563, 42.6100763], [-83.3324207, 42.6099865], [-83.3323492, 42.6098826], [-83.3326765, 42.6097874], [-83.3330192, 42.6096741], [-83.335751, 42.607295], [-83.336501, 42.606639], [-83.337241, 42.605991], [-83.3375172, 42.6057254], [-83.338312, 42.604961], [-83.3390532, 42.6042904]], [[-83.3390532, 42.6042904], [-83.3394562, 42.6039251], [-83.339836, 42.6036025], [-83.3403916, 42.6031362], [-83.3410182, 42.6026624]]]):
+# 	p.append(pair)
+# print(p)
 # def get_totago_URL(distance):
 # 	url = 'https://www.totago.co/api/v1/path_stats.json?'
 # 	pckg = {'path':'enc:' + 'wkcaGrnnfOEFGNEJAF?N@TAVAV?TELCLK`@M`@CJOd@IVKf@CFEHEHMLSHMDOBM?I?KAOGKIGEGIGQSi@M_@GOIKKEOCOC[EQCMMUQUSSMUAU?OBO?MAGAK?]@QBU@MBa@@c@BQFKJGNELCHAPAJ?NANARKTSTMFMDOFMJMHMPGRAL@LDZDPFf@FVBVBR@Z?V?NDd@BNDRHTFNDLBJBH?LAJ?REZCJELMNIFWDOFIDKHGHMTGNCV?RAREVCTALC^AR?LCRGVGRGLS\ENELAJ@ZBd@DZ@b@ATCTAT?RBZHTPTJPHRLPHHLJJBNBL?NCJCNBP@J@F?LBJBD@HFDFH^F`@Fh@?VAVENELS\YXIHMNGPCPERCRCNBTBVBTDZBV?Z?ZGXIRQj@MTQTMPIREJGRIRMd@EHIN[^ONSFMHQHKJGFKHGHGLCFERCPCNAJ@N?LBNDR@T?PARA\?NCFCDEDKFGFKL??cCvE??OX_@r@W^e@t@e@z@a@f@a@ROJ_@V_@RWLQDU?k@?qAC[AyABwCB}BBcC@aBCU@K?K@KBq@?e@EWCg@G]Ce@A]@U?]BOCMMKMQIOAY?ODSFOFWJUBOAMEIKGOES?YC]Es@@e@?[BSFa@Da@@WCMEKKEQ?UBM@OEQIW@q@Be@@W?ICIIMMwA}B@_HBmGU?W??dA?Po@?kA@w@?e@@e@BS@OAOGCECECKAK?m@EcACi@Ew@E{@Cm@Ao@Ac@C}@@e@Ay@Ca@Kg@KMSE}@B[?_@?U?WDMBM?OIGQCECAQGMAc@Y]Ei@K]EU?e@KSA[BMDIDS@OCE@e@?S?KBI@KHSBOFe@Ew@_@I?MEWW_@e@SMYUWKW]O]EYC_@AMKg@BG?UEc@GUAOI[G]M[YSSEG@SIYEQGK@YGSCa@GOCUFI?IB?JWHOGWU[QQGG@KCUC[O??MEWAM?WGQ@]CMB[F??KBa@CM@IBm@@MBMNM\GJODQ?o@Uc@S[Kc@UG???_@CSBO@SECK@MCY???KKk@KQ]]OWEe@Ia@M[MKQGKBMJMPIX@^@R@NAZGPCTANAL@PAVFh@Fb@D^Bb@DXB\?Z?RETG^IPCND~@Mf@ITET?`@??CbACZCv@??Ep@C`@AR?HCXEPC^?Z?V@NBJh@lAPPf@ZZ\JXJ\DZFJJBPBRBNRNXBHBb@CTAZ@ZB^Lb@L`@BVF^Tl@Vt@Pj@BNDT?NARBPHPEPGp@Ef@GXATBRJd@@VEZIXG\I^G\E^Ir@I|@AT?ZAZBLAHEPCTAV@|@@`@A^?BALE?a@?e@?c@?Y?i@BM?OCKEQKOEUCg@Aa@@Q@MAGGOQMQMKMEOCM@WBUDYJSDSDQ?MEQIOQMMQIG?k@?e@?g@@o@@u@Bc@?_@BS@SBWBU?U?[@UA[?c@?Q@MBQFKPOTQ^KTITERAZ?`@@|@?VBXA`@Af@@l@@^A`@?n@Ab@@f@?dA?d@@d@@TAd@?j@Bx@?XCj@?v@@b@?ZAXEXGZEb@Kb@E\Gd@If@Kb@IVOVU\OTULWFOHIJGLENGb@Mz@EJEHGDQJKFGLCTCPITMLc@b@w@p@q@^EY',
@@ -128,4 +209,11 @@ def get_polyline(c, precision=5):
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
 
 
+'''
+BUGS: 
+- need to fix order of lat, lon for polyline, distance, and geoJSON
+- perhaps make a 2 functions that 1. accepts geoJSON and gets polyline and 2. accepts geoJSON and gets distance
+- distances are ALL fucked up, need to redo this
+
+'''
 
