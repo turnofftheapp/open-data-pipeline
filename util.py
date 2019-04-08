@@ -196,62 +196,69 @@ def get_node_distance(node1, node2):
 	return dist 
 
 def order_ways(trail_obj, way_list):
-	# print(list(trail_obj))
-	# print(len(trail_obj))
+	while len(way_list) > 0:
+		print("\n")
+		print("running order_ways...")
+		print("trail obj is size: " + str(len(trail_obj)))
+		print("way obj is size: " + str(len(way_list)))
 
-	# use deque from collections lib instead of list for more efficient appending (and prepending)
-	trail_obj = deque(trail_obj)
-	trail_start = trail_obj[0][0]
-	trail_end = trail_obj[-1][-1]
+		# use deque from collections lib instead of list for more efficient appending (and prepending)
+		trail_obj = deque(trail_obj)
+		trail_start = trail_obj[0][0]
+		trail_end = trail_obj[-1][-1]
 
-	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+		# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
 
-	way_min_dist = MAX_DIST_BETWEEN_WAYS 
+		way_min_dist = MAX_DIST_BETWEEN_WAYS 
 
-	for i, way in enumerate(way_list):
+		for i, way in enumerate(way_list):
 
 
-		way_start = way[0]
-		way_end = way[-1]
-		# print("way start: " + str(way_start) + "\nway end: " + str(way_end))
+			way_start = way[0]
+			way_end = way[-1]
+			# print("way start: " + str(way_start) + "\nway end: " + str(way_end))
 
-		front_dist = get_node_distance(trail_start, way_end)
-		end_dist = get_node_distance(trail_end, way_start)
-		# if a way must be inverted
-		front_dist_invert = get_node_distance(trail_start, way_start)
-		end_dist_invert = get_node_distance(trail_end, way_end)
+			front_dist = get_node_distance(trail_start, way_end)
+			end_dist = get_node_distance(trail_end, way_start)
+			# if a way must be inverted
+			front_dist_invert = get_node_distance(trail_start, way_start)
+			end_dist_invert = get_node_distance(trail_end, way_end)
 
-		if front_dist < way_min_dist:
-			way_min_dist = front_dist
-			method = 'prepend'
-			winner_way = way
-		elif end_dist < way_min_dist:
-			way_min_dist = end_dist
-			method = 'append'
-			winner_way = way
-		elif front_dist_invert < way_min_dist:
-			way_min_dist = front_dist_invert
-			method = 'prepend inverted'
-			winner_way = way
-		elif end_dist_invert < way_min_dist:
-			way_min_dist = end_dist_invert
-			method = 'append inverted'
-			winner_way = way
+			if front_dist < way_min_dist:
+				way_min_dist = front_dist
+				method = 'prepend'
+				winner_way = way
+			elif end_dist < way_min_dist:
+				way_min_dist = end_dist
+				method = 'append'
+				winner_way = way
+			elif front_dist_invert < way_min_dist:
+				way_min_dist = front_dist_invert
+				method = 'prepend inverted'
+				winner_way = way
+			elif end_dist_invert < way_min_dist:
+				way_min_dist = end_dist_invert
+				method = 'append inverted'
+				winner_way = way
 
-	if method == 'prepend':
-		trail_obj.appendleft(winner_way)
-	elif method == 'append':
-		trail_obj.append(winner_way)
-	elif method == 'prepend inverted':
-		winner_way.reverse()
-		trail_obj.appendleft(winner_way)
-	elif method == 'append inverted':
-		winner_way.reverse()
-		trail_obj.append(winner_way)
-	way_list.remove(winner_way)
+		if method == 'prepend':
+			trail_obj.appendleft(winner_way)
+			print(method + " way " + str(i))
+		elif method == 'append':
+			trail_obj.append(winner_way)
+			print(method + " way " + str(i))
+		elif method == 'prepend inverted':
+			winner_way.reverse()
+			trail_obj.appendleft(winner_way)
+			print(method + " way " + str(i))
+		elif method == 'append inverted':
+			winner_way.reverse()
+			trail_obj.append(winner_way)
+			print(method + " way " + str(i))
+		else:
+			print("OOPS")
 
-	if len(way_list) > 0:
-		print('running again')
+		way_list.remove(winner_way)
 		order_ways(trail_obj, way_list)
 
 	return(list(trail_obj), way_list)
@@ -272,16 +279,18 @@ with open('trail.json') as f:
 trail_obj = [way_list[0]]
 way_list = way_list[1:]
 
-o = order_ways(trail_obj, way_list)
-print("trail_obj: " + str(o[0]))
-print("numways  = " + str(len(o[0])))
-print("\n way_list: " + str(o[1]))
+# print("trail_obj: " + str(o[0]))
+# print("numways  = " + str(len(o[0])))
+# print("\n way_list: " + str(o[1]))
 
 
 # print("before\n")
 # print("trail obj: " + str(trail_obj) + "\nway_list: " + str(way_list))
+o = order_ways(trail_obj, way_list)
+print(o)
+
 # print("\nafter\n")
-# print("trail obj: " + str((order_ways(trail_obj, way_list))[0]) + "\nway_list: " + str((order_ways(trail_obj, way_list))[1]))
+# print("trail obj: " + str(o[0]) + "\nway_list: " + str(o[1]))
 
 
 # p = []
