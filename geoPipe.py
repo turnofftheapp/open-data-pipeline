@@ -118,15 +118,32 @@ def injectNodes(c, node_df):
 
 def group_trails(trail_df):
 	trail_ways = []
-	for trail in trail_df.name.unique():
-		trail_ways.append(trail_df[trail_df["name"] == trail].nodes)
-	return trail_ways
+	new_trail_df = pd.DataFrame(columns=['id', 'ways', 'tags'])
+	for trail_name in trail_df.name.unique():
+		ways_with_trail_name = trail_df[trail_df["name"] == trail_name]
 
-def order_trail_ways(trail_groups):
-	for group in trail_groups:
-		group = list(group)
-		print(group)
-		print(type(group))
+		trail_ways = list(ways_with_trail_name.nodes)
+		trail_tags = list(ways_with_trail_name.tags)
+		trail_id = list(ways_with_trail_name.id)[0]
+
+		print("trail: " + trail_name + "\n" 
+			+ "ways: " + str(trail_ways) + "\n"
+			+ "tags: " + str(trail_tags) + "\n"
+			+ "id: " + str(trail_id) + "\n")
+		print("-----------------------------------------")
+
+		trail_df.append({
+						'id': trail_id, 
+						'name': trail_name,
+						'ways': trail_ways,
+						'tags': trail_tags}
+						, ignore_index=True)
+	return trail_df
+
+# def order_trail_ways(trail_groups):
+# 	for group in trail_groups:
+# 		print(group)
+# 		print(type(group))
 
 
 def main():
@@ -170,9 +187,11 @@ def main():
 	# print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
 
 	# 5. Get unique trail names
-	trail_groups = group_trails(trail_df)
+	new_trail_df = group_trails(trail_df)
+	print(new_trail_df)
 
-	order_trail_ways(trail_groups)
+
+	# order_trail_ways(trail_groups)
 
 
 
