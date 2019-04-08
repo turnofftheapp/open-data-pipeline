@@ -6,9 +6,12 @@ import requests
 import json
 import os
 import polyline
-from geopy.distance import distance
+import math
+from geopy.distance import distance, geodesic
 from shapely.geometry import LineString
+from collections import deque
 
+MAX_DIST_BETWEEN_WAYS = 99999
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -176,15 +179,110 @@ def pairs(lineString):
 		# print("TESTING")
 		# print(prev, item)
 		prev = item
-	
-# smalltrail =  [
-#  	[
-#  		[-83.3248197, 42.6179619], [-83.326194, 42.616364], [-83.329406, 42.613143], [-83.331711, 42.610831], [-83.3324881, 42.6101564], [-83.3324563, 42.6100763], [-83.3324207, 42.6099865], [-83.3323492, 42.6098826], [-83.3326765, 42.6097874], [-83.3330192, 42.6096741], [-83.335751, 42.607295], [-83.336501, 42.606639], [-83.337241, 42.605991], [-83.3375172, 42.6057254], [-83.338312, 42.604961], [-83.3390532, 42.6042904]
-#  	], 
-#  	[
-#  		[-83.3390532, 42.6042904], [-83.3394562, 42.6039251], [-83.339836, 42.6036025], [-83.3403916, 42.6031362], [-83.3410182, 42.6026624]
-#  	]
-#  ]
+
+# def get_node_distance(node1, node2):
+# 	if node1["id"] == node2["id"]:
+# 		return 0
+# 	else:
+# 		node1 = (node1['lat'], node1['lon'])
+# 		node2 = (node2['lat'], node2['lon'])
+# 		print(int(str(distance(node1, node2))))
+# 		return 0
+
+def get_node_distance(node1, node2): 
+	[x1, y1] = node1['lat'], node1['lon']
+	[x2, y2] = node2['lat'], node2['lon']
+	dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
+	return dist 
+
+def order_ways(trail_obj, way_list):
+	# print(list(trail_obj))
+	# print(len(trail_obj))
+
+	# use deque from collections lib instead of list for more efficient appending (and prepending)
+	trail_obj = deque(trail_obj)
+	trail_start = trail_obj[0][0]
+	trail_end = trail_obj[-1][-1]
+
+	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+
+	way_min_dist = MAX_DIST_BETWEEN_WAYS 
+
+	for i, way in enumerate(way_list):
+
+
+		way_start = way[0]
+		way_end = way[-1]
+		# print("way start: " + str(way_start) + "\nway end: " + str(way_end))
+
+		front_dist = get_node_distance(trail_start, way_end)
+		end_dist = get_node_distance(trail_end, way_start)
+		# if a way must be inverted
+		front_dist_invert = get_node_distance(trail_start, way_start)
+		end_dist_invert = get_node_distance(trail_end, way_end)
+
+		if front_dist < way_min_dist:
+			way_min_dist = front_dist
+			method = 'prepend'
+			winner_way = way
+		elif end_dist < way_min_dist:
+			way_min_dist = end_dist
+			method = 'append'
+			winner_way = way
+		elif front_dist_invert < way_min_dist:
+			way_min_dist = front_dist_invert
+			method = 'prepend inverted'
+			winner_way = way
+		elif end_dist_invert < way_min_dist:
+			way_min_dist = end_dist_invert
+			method = 'append inverted'
+			winner_way = way
+
+	if method == 'prepend':
+		trail_obj.appendleft(winner_way)
+	elif method == 'append':
+		trail_obj.append(winner_way)
+	elif method == 'prepend inverted':
+		winner_way.reverse()
+		trail_obj.appendleft(winner_way)
+	elif method == 'append inverted':
+		winner_way.reverse()
+		trail_obj.append(winner_way)
+	way_list.remove(winner_way)
+
+	if len(way_list) > 0:
+		print('running again')
+		order_ways(trail_obj, way_list)
+
+	return(list(trail_obj), way_list)
+
+
+
+
+		# print(str(way) + "\n" + str(i) + "\n" + str(way_min_dist))
+
+
+
+
+
+
+with open('trail.json') as f:  
+	way_list = json.load(f)
+
+trail_obj = [way_list[0]]
+way_list = way_list[1:]
+
+o = order_ways(trail_obj, way_list)
+print("trail_obj: " + str(o[0]))
+print("numways  = " + str(len(o[0])))
+print("\n way_list: " + str(o[1]))
+
+
+# print("before\n")
+# print("trail obj: " + str(trail_obj) + "\nway_list: " + str(way_list))
+# print("\nafter\n")
+# print("trail obj: " + str((order_ways(trail_obj, way_list))[0]) + "\nway_list: " + str((order_ways(trail_obj, way_list))[1]))
+
 
 # p = []
 # for linestring in smalltrail:
