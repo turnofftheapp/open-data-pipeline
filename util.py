@@ -196,72 +196,72 @@ def get_node_distance(node1, node2):
 	return dist 
 
 def order_ways(trail_obj, way_list):
-	while len(way_list) > 0:
-		print("\n")
-		print("running order_ways...")
-		print("trail obj is size: " + str(len(trail_obj)))
-		print("way obj is size: " + str(len(way_list)))
+	# break recurse if there are no remaining unbound ways
+	if len(way_list) == 0:
+		return(trail_obj, way_list)
+	
+	# use deque from collections lib instead of list for more efficient appending (and prepending)
+	trail_obj = deque(trail_obj)
+	trail_start = trail_obj[0][0]
+	trail_end = trail_obj[-1][-1]
 
-		# use deque from collections lib instead of list for more efficient appending (and prepending)
-		trail_obj = deque(trail_obj)
-		trail_start = trail_obj[0][0]
-		trail_end = trail_obj[-1][-1]
+	for debug
+	print("\n")
+	print("running order_ways...")
+	print("trail obj is size: " + str(len(trail_obj)))
+	print("way obj is size: " + str(len(way_list)))
+	print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
 
-		# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+	way_min_dist = MAX_DIST_BETWEEN_WAYS 
 
-		way_min_dist = MAX_DIST_BETWEEN_WAYS 
+	for way in way_list:
 
-		for i, way in enumerate(way_list):
+		way_start = way[0]
+		way_end = way[-1]
 
+		front_dist = get_node_distance(trail_start, way_end)
+		end_dist = get_node_distance(trail_end, way_start)
+		# if a way must be inverted
+		front_dist_invert = get_node_distance(trail_start, way_start)
+		end_dist_invert = get_node_distance(trail_end, way_end)
 
-			way_start = way[0]
-			way_end = way[-1]
-			# print("way start: " + str(way_start) + "\nway end: " + str(way_end))
+		if front_dist < way_min_dist:
+			way_min_dist = front_dist
+			method = 'prepend'
+			winner_way = way
+		if end_dist < way_min_dist:
+			way_min_dist = end_dist
+			method = 'append'
+			winner_way = way
+		if front_dist_invert < way_min_dist:
+			way_min_dist = front_dist_invert
+			method = 'prepend inverted'
+			winner_way = way
+		if end_dist_invert < way_min_dist:
+			way_min_dist = end_dist_invert
+			method = 'append inverted'
+			winner_way = way
 
-			front_dist = get_node_distance(trail_start, way_end)
-			end_dist = get_node_distance(trail_end, way_start)
-			# if a way must be inverted
-			front_dist_invert = get_node_distance(trail_start, way_start)
-			end_dist_invert = get_node_distance(trail_end, way_end)
+	if method == 'prepend':
+		trail_obj.appendleft(winner_way)
+		print(method + " way " + str(len(winner_way)))
+	elif method == 'append':
+		trail_obj.append(winner_way)
+		print(method + " way " + str(len(winner_way)))
+	elif method == 'prepend inverted':
+		winner_way.reverse()
+		trail_obj.appendleft(winner_way)
+		print(method + " way " + str(len(winner_way)))
+	elif method == 'append inverted':
+		winner_way.reverse()
+		trail_obj.append(winner_way)
+		print(method + " way " + str(len(winner_way)))
+	else:
+		print("OOPS")
 
-			if front_dist < way_min_dist:
-				way_min_dist = front_dist
-				method = 'prepend'
-				winner_way = way
-			elif end_dist < way_min_dist:
-				way_min_dist = end_dist
-				method = 'append'
-				winner_way = way
-			elif front_dist_invert < way_min_dist:
-				way_min_dist = front_dist_invert
-				method = 'prepend inverted'
-				winner_way = way
-			elif end_dist_invert < way_min_dist:
-				way_min_dist = end_dist_invert
-				method = 'append inverted'
-				winner_way = way
+	way_list.remove(winner_way)
 
-		if method == 'prepend':
-			trail_obj.appendleft(winner_way)
-			print(method + " way " + str(i))
-		elif method == 'append':
-			trail_obj.append(winner_way)
-			print(method + " way " + str(i))
-		elif method == 'prepend inverted':
-			winner_way.reverse()
-			trail_obj.appendleft(winner_way)
-			print(method + " way " + str(i))
-		elif method == 'append inverted':
-			winner_way.reverse()
-			trail_obj.append(winner_way)
-			print(method + " way " + str(i))
-		else:
-			print("OOPS")
-
-		way_list.remove(winner_way)
-		order_ways(trail_obj, way_list)
-
-	return(list(trail_obj), way_list)
+	return(order_ways(trail_obj, way_list))
 
 
 
@@ -279,38 +279,19 @@ with open('trail.json') as f:
 trail_obj = [way_list[0]]
 way_list = way_list[1:]
 
-# print("trail_obj: " + str(o[0]))
-# print("numways  = " + str(len(o[0])))
-# print("\n way_list: " + str(o[1]))
 
-
-# print("before\n")
-# print("trail obj: " + str(trail_obj) + "\nway_list: " + str(way_list))
 o = order_ways(trail_obj, way_list)
-print(o)
+print("\n")
+print(list(o[0]))
+# print(list(o[1]))
 
-# print("\nafter\n")
-# print("trail obj: " + str(o[0]) + "\nway_list: " + str(o[1]))
 
+# lst = deque([[1, 2, 3]])
+# lst1 = [0, 4]
+# lst1.reverse()
+# lst.appendleft(lst1)
+# print(lst)
 
-# p = []
-# for linestring in smalltrail:
-# 	p.append(pairs(linestring))
-# print(p)
-# p = []
-# for pair in pairs([[[-83.3248197, 42.6179619], [-83.326194, 42.616364], [-83.329406, 42.613143], [-83.331711, 42.610831], [-83.3324881, 42.6101564], [-83.3324563, 42.6100763], [-83.3324207, 42.6099865], [-83.3323492, 42.6098826], [-83.3326765, 42.6097874], [-83.3330192, 42.6096741], [-83.335751, 42.607295], [-83.336501, 42.606639], [-83.337241, 42.605991], [-83.3375172, 42.6057254], [-83.338312, 42.604961], [-83.3390532, 42.6042904]], [[-83.3390532, 42.6042904], [-83.3394562, 42.6039251], [-83.339836, 42.6036025], [-83.3403916, 42.6031362], [-83.3410182, 42.6026624]]]):
-# 	p.append(pair)
-# print(p)
-# def get_totago_URL(distance):
-# 	url = 'https://www.totago.co/api/v1/path_stats.json?'
-# 	pckg = {'path':'enc:' + 'wkcaGrnnfOEFGNEJAF?N@TAVAV?TELCLK`@M`@CJOd@IVKf@CFEHEHMLSHMDOBM?I?KAOGKIGEGIGQSi@M_@GOIKKEOCOC[EQCMMUQUSSMUAU?OBO?MAGAK?]@QBU@MBa@@c@BQFKJGNELCHAPAJ?NANARKTSTMFMDOFMJMHMPGRAL@LDZDPFf@FVBVBR@Z?V?NDd@BNDRHTFNDLBJBH?LAJ?REZCJELMNIFWDOFIDKHGHMTGNCV?RAREVCTALC^AR?LCRGVGRGLS\ENELAJ@ZBd@DZ@b@ATCTAT?RBZHTPTJPHRLPHHLJJBNBL?NCJCNBP@J@F?LBJBD@HFDFH^F`@Fh@?VAVENELS\YXIHMNGPCPERCRCNBTBVBTDZBV?Z?ZGXIRQj@MTQTMPIREJGRIRMd@EHIN[^ONSFMHQHKJGFKHGHGLCFERCPCNAJ@N?LBNDR@T?PARA\?NCFCDEDKFGFKL??cCvE??OX_@r@W^e@t@e@z@a@f@a@ROJ_@V_@RWLQDU?k@?qAC[AyABwCB}BBcC@aBCU@K?K@KBq@?e@EWCg@G]Ce@A]@U?]BOCMMKMQIOAY?ODSFOFWJUBOAMEIKGOES?YC]Es@@e@?[BSFa@Da@@WCMEKKEQ?UBM@OEQIW@q@Be@@W?ICIIMMwA}B@_HBmGU?W??dA?Po@?kA@w@?e@@e@BS@OAOGCECECKAK?m@EcACi@Ew@E{@Cm@Ao@Ac@C}@@e@Ay@Ca@Kg@KMSE}@B[?_@?U?WDMBM?OIGQCECAQGMAc@Y]Ei@K]EU?e@KSA[BMDIDS@OCE@e@?S?KBI@KHSBOFe@Ew@_@I?MEWW_@e@SMYUWKW]O]EYC_@AMKg@BG?UEc@GUAOI[G]M[YSSEG@SIYEQGK@YGSCa@GOCUFI?IB?JWHOGWU[QQGG@KCUC[O??MEWAM?WGQ@]CMB[F??KBa@CM@IBm@@MBMNM\GJODQ?o@Uc@S[Kc@UG???_@CSBO@SECK@MCY???KKk@KQ]]OWEe@Ia@M[MKQGKBMJMPIX@^@R@NAZGPCTANAL@PAVFh@Fb@D^Bb@DXB\?Z?RETG^IPCND~@Mf@ITET?`@??CbACZCv@??Ep@C`@AR?HCXEPC^?Z?V@NBJh@lAPPf@ZZ\JXJ\DZFJJBPBRBNRNXBHBb@CTAZ@ZB^Lb@L`@BVF^Tl@Vt@Pj@BNDT?NARBPHPEPGp@Ef@GXATBRJd@@VEZIXG\I^G\E^Ir@I|@AT?ZAZBLAHEPCTAV@|@@`@A^?BALE?a@?e@?c@?Y?i@BM?OCKEQKOEUCg@Aa@@Q@MAGGOQMQMKMEOCM@WBUDYJSDSDQ?MEQIOQMMQIG?k@?e@?g@@o@@u@Bc@?_@BS@SBWBU?U?[@UA[?c@?Q@MBQFKPOTQ^KTITERAZ?`@@|@?VBXA`@Af@@l@@^A`@?n@Ab@@f@?dA?d@@d@@TAd@?j@Bx@?XCj@?v@@b@?ZAXEXGZEb@Kb@E\Gd@If@Kb@IVOVU\OTULWFOHIJGLENGb@Mz@EJEHGDQJKFGLCTCPITMLc@b@w@p@q@^EY',
-# 	'is_through_hike':True}
-# 	r = requests.get(url, params=pckg)
-
-# 	print(r)
-# 	print(r.url)
-
-# 	pass
 
 
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
