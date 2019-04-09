@@ -15,7 +15,7 @@ from tqdm import tqdm
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 STATE = "Michigan"
 # WAYLIMIT = 100
 # requests_cache.install_cache('demo_cache')
@@ -203,10 +203,16 @@ def main():
 	print("transforming ways to trail geojsons")
 	trail_df = trail_df.progress_apply(repair_ways, axis=1)
 
-	# 7. Encode polyline
+	# 7. Get geoJSON objects for each trail
+	trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
+	trail_df = trail_df.apply(util.get_LineString, axis=1)
+
+	# 8. Encode polyline
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 	print(trail_df.columns)
 	print(trail_df)
+	# trail_df.to_csv('polyline_check_max_dist_10.csv', columns=['id', 'name', 'polyline'], index=False, header=['id', 'name', 'polyline'])
+
 	
 
 

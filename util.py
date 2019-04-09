@@ -13,7 +13,7 @@ from collections import deque
 from itertools import chain
 
 
-MAX_DIST_BETWEEN_WAYS = 99999
+MAX_DIST_BETWEEN_WAYS = 10
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -119,6 +119,34 @@ def get_polyline(c, precision=5):
 		nodes.append((float(node['lat']), float(node['lon'])))
 	c['polyline'] = polyline.encode(nodes, precision)
 	return c
+
+def get_LineString(c):
+	'''
+	Args: c iterable
+	'''
+	ls_geoJSON = {"type":"LineString", "coordinates": []}
+	# make LineString
+	for node in list(chain.from_iterable(c['ways_ordered'])):
+		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
+	c['LineString'] = ls_geoJSON
+	print(ls_geoJSON)
+	return c
+
+def get_MultiLineString(c):
+	'''
+	Args: c iterable
+	'''
+	mls_geoJSON = {"type":"MultiLineString", "coordinates": []}
+	# make MultiLineString
+	for way in list(c['ways']):
+		way_coords = []
+		for node in way: 
+			way_coords.append([node['lon'], node['lat']])
+		mls_geoJSON["coordinates"].append(way_coords)
+
+	c['MultiLineString'] = mls_geoJSON
+	return c
+
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
 def get_distance(c):
@@ -255,6 +283,11 @@ def order_ways(trail_obj, way_list):
 			way_min_dist = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
+
+		# if way_min_dist > MAX_DIST_BETWEEN_WAYS:
+		# 	flag = ""
+
+
 
 	if method == 'prepend':
 		trail_obj.appendleft(winner_way)
