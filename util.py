@@ -196,6 +196,17 @@ def get_node_distance(node1, node2):
 	return dist 
 
 def order_ways(trail_obj, way_list):
+	''' Bring order to our lists of ways
+
+	Args: 
+		- trail_obj: list containing our first way, wrapped in a list(first way doesnt matter) 
+			i.e. [[way object dict]]
+		- way_list: list of lists of other ways, not in any order
+
+	Returns: 
+		- trail_obj: each time with 1 new trail appended or prepended, until entire trail_obj has been formed
+		- way_list: 1 item smaller, until empty, when function exits
+	'''
 	# break recurse if there are no remaining unbound ways
 	if len(way_list) == 0:
 		return(trail_obj, way_list)
@@ -205,12 +216,12 @@ def order_ways(trail_obj, way_list):
 	trail_start = trail_obj[0][0]
 	trail_end = trail_obj[-1][-1]
 
-	for debug
-	print("\n")
-	print("running order_ways...")
-	print("trail obj is size: " + str(len(trail_obj)))
-	print("way obj is size: " + str(len(way_list)))
-	print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+	# # for debug
+	# print("\n")
+	# print("running order_ways...")
+	# print("trail obj is size: " + str(len(trail_obj)))
+	# print("way obj is size: " + str(len(way_list)))
+	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
 
 	way_min_dist = MAX_DIST_BETWEEN_WAYS 
 
@@ -219,11 +230,11 @@ def order_ways(trail_obj, way_list):
 		way_start = way[0]
 		way_end = way[-1]
 
-		front_dist = get_node_distance(trail_start, way_end)
-		end_dist = get_node_distance(trail_end, way_start)
+		front_dist = util.get_node_distance(trail_start, way_end)
+		end_dist = util.get_node_distance(trail_end, way_start)
 		# if a way must be inverted
-		front_dist_invert = get_node_distance(trail_start, way_start)
-		end_dist_invert = get_node_distance(trail_end, way_end)
+		front_dist_invert = util.get_node_distance(trail_start, way_start)
+		end_dist_invert = util.get_node_distance(trail_end, way_end)
 
 		if front_dist < way_min_dist:
 			way_min_dist = front_dist
