@@ -116,34 +116,37 @@ def injectNodes(c, node_df):
 	c['nodes'] = node_objs
 	return c
 
-def group_trails(trail_df):
-	trail_ways = []
-	new_trail_df = pd.DataFrame(columns=['id', 'ways', 'tags'])
-	for trail_name in trail_df.name.unique():
-		ways_with_trail_name = trail_df[trail_df["name"] == trail_name]
+def group_trails(way_df):
+	''' creates new dataframe, 1 row for each name contianing lists of tags and ways for each old dataframe row,
+	id from first way
+
+	'''
+	new_trails = []
+	trail_df = pd.DataFrame(columns=['id', 'name', 'ways', 'tags'])
+	for trail_name in way_df.name.unique():
+		ways_with_trail_name = way_df[way_df["name"] == trail_name]
 
 		trail_ways = list(ways_with_trail_name.nodes)
 		trail_tags = list(ways_with_trail_name.tags)
 		trail_id = list(ways_with_trail_name.id)[0]
 
-		print("trail: " + trail_name + "\n" 
-			+ "ways: " + str(trail_ways) + "\n"
-			+ "tags: " + str(trail_tags) + "\n"
-			+ "id: " + str(trail_id) + "\n")
-		print("-----------------------------------------")
+		# print("trail: " + trail_name + "\n" 
+		# 	+ "ways: " + str(trail_ways) + "\n"
+		# 	+ "tags: " + str(trail_tags) + "\n"
+		# 	+ "id: " + str(trail_id) + "\n")
+		# print("-----------------------------------------")
 
-		trail_df.append({
-						'id': trail_id, 
-						'name': trail_name,
-						'ways': trail_ways,
-						'tags': trail_tags}
-						, ignore_index=True)
+		new_trail = {
+					'id': trail_id, 
+					'name': trail_name,
+					'ways': trail_ways,
+					'tags': trail_tags
+					}
+
+		new_trails.append(new_trail)
+	
+	trail_df = pd.DataFrame(new_trails)
 	return trail_df
-
-# def order_trail_ways(trail_groups):
-# 	for group in trail_groups:
-# 		print(group)
-# 		print(type(group))
 
 
 def main():
@@ -178,20 +181,19 @@ def main():
 	# 3. 
 	# get all nodes lat and lon for each way
 	print("injecting node coordinates into ways")
-	trail_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
+	way_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
 
 	# 4. name each trail
 	print("naming trails")
-	trail_df = trail_df.progress_apply(util.get_name, axis=1)
-	print(trail_df.columns)
+	way_df = way_df.progress_apply(util.get_name, axis=1)
 	# print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
 
-	# 5. Get unique trail names
-	new_trail_df = group_trails(trail_df)
-	print(new_trail_df)
+	# 5. Form new dataframe of trails
+	trail_df = group_trails(way_df)
+	print(trail_df)
 
-
-	# order_trail_ways(trail_groups)
+	# 6. Order ways within each trail
+	# trail_df.apply(repair_ways, axis=1)
 
 
 

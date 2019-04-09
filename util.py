@@ -230,11 +230,11 @@ def order_ways(trail_obj, way_list):
 		way_start = way[0]
 		way_end = way[-1]
 
-		front_dist = util.get_node_distance(trail_start, way_end)
-		end_dist = util.get_node_distance(trail_end, way_start)
+		front_dist = get_node_distance(trail_start, way_end)
+		end_dist = get_node_distance(trail_end, way_start)
 		# if a way must be inverted
-		front_dist_invert = util.get_node_distance(trail_start, way_start)
-		end_dist_invert = util.get_node_distance(trail_end, way_end)
+		front_dist_invert = get_node_distance(trail_start, way_start)
+		end_dist_invert = get_node_distance(trail_end, way_end)
 
 		if front_dist < way_min_dist:
 			way_min_dist = front_dist
