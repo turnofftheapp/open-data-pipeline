@@ -10,6 +10,8 @@ import math
 from geopy.distance import distance, geodesic
 from shapely.geometry import LineString
 from collections import deque
+from itertools import chain
+
 
 MAX_DIST_BETWEEN_WAYS = 99999
 
@@ -111,8 +113,9 @@ def get_trail_end(c):
 
 ## FIX: take from geoJSON ***
 def get_polyline(c, precision=5):
+	# list(chain.from_iterable(
 	nodes = []
-	for node in c['nodes']:
+	for node in list(chain.from_iterable(c['ways_ordered'])):
 		nodes.append((float(node['lat']), float(node['lon'])))
 	c['polyline'] = polyline.encode(nodes, precision)
 	return c
@@ -255,21 +258,21 @@ def order_ways(trail_obj, way_list):
 
 	if method == 'prepend':
 		trail_obj.appendleft(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'append':
 		trail_obj.append(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'prepend inverted':
 		winner_way.reverse()
 		trail_obj.appendleft(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'append inverted':
 		winner_way.reverse()
 		trail_obj.append(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	else:
-		print("OOPS")
-
+		# print("OOPS")
+		pass
 	way_list.remove(winner_way)
 
 	return(order_ways(trail_obj, way_list))
@@ -284,24 +287,20 @@ def order_ways(trail_obj, way_list):
 
 
 
-with open('trail.json') as f:  
-	way_list = json.load(f)
+# with open('trail.json') as f:  
+# 	way_list = json.load(f)
 
-trail_obj = [way_list[0]]
-way_list = way_list[1:]
+# trail_obj = [way_list[0]]
+# way_list = way_list[1:]
 
 
-o = order_ways(trail_obj, way_list)
-print("\n")
-print(list(o[0]))
+# o = order_ways(trail_obj, way_list)
+# print("\n")
+# print(list(o[0]))
 # print(list(o[1]))
 
 
-# lst = deque([[1, 2, 3]])
-# lst1 = [0, 4]
-# lst1.reverse()
-# lst.appendleft(lst1)
-# print(lst)
+
 
 
 

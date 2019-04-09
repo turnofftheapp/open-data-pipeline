@@ -148,6 +148,14 @@ def group_trails(way_df):
 	trail_df = pd.DataFrame(new_trails)
 	return trail_df
 
+def repair_ways(c):
+	way_list = c.ways
+	trail_obj = [way_list[0]]
+	way_list = way_list[1:]
+	o = util.order_ways(trail_obj, way_list)
+	c['ways_ordered'] = o[0]
+	return c
+
 
 def main():
 	""" Executes pipeline logic
@@ -190,11 +198,16 @@ def main():
 
 	# 5. Form new dataframe of trails
 	trail_df = group_trails(way_df)
-	print(trail_df)
 
 	# 6. Order ways within each trail
-	# trail_df.apply(repair_ways, axis=1)
+	print("transforming ways to trail geojsons")
+	trail_df = trail_df.progress_apply(repair_ways, axis=1)
 
+	# 7. Encode polyline
+	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
+	print(trail_df.columns)
+	print(trail_df)
+	
 
 
 
