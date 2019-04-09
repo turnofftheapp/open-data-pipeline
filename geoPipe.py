@@ -209,6 +209,10 @@ def main():
 
 	# 8. Encode polyline
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
+
+	# 9. Repair tags
+	trail_df = trail_df.apply(util.repair_tags, axis=1)
+	
 	print(trail_df.columns)
 	print(trail_df)
 	# trail_df.to_csv('polyline_check_max_dist_10.csv', columns=['id', 'name', 'polyline'], index=False, header=['id', 'name', 'polyline'])

@@ -147,6 +147,21 @@ def get_MultiLineString(c):
 	c['MultiLineString'] = mls_geoJSON
 	return c
 
+def repair_tags(c):
+	'''
+	Args: c iterable
+	Returns: c with 'tags' column with duplicates removed
+	'''
+	tag_obj = {}
+	for tag in c['tags']:
+		for k, v in tag.items():
+			if k not in tag_obj:
+				tag_obj[k] = [v]
+			elif v not in tag_obj[k]:
+				tag_obj[k].append(v)
+				
+	c['tags'] = tag_obj
+	return c
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
 def get_distance(c):
@@ -283,6 +298,8 @@ def order_ways(trail_obj, way_list):
 			way_min_dist = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
+		else:
+			method = 'gap too large'
 
 		# if way_min_dist > MAX_DIST_BETWEEN_WAYS:
 		# 	flag = ""
@@ -304,8 +321,8 @@ def order_ways(trail_obj, way_list):
 		trail_obj.append(winner_way)
 		# print(method + " way " + str(len(winner_way)))
 	else:
-		# print("OOPS")
 		pass
+
 	way_list.remove(winner_way)
 
 	return(order_ways(trail_obj, way_list))
