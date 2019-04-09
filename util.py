@@ -129,7 +129,6 @@ def get_LineString(c):
 	for node in list(chain.from_iterable(c['ways_ordered'])):
 		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
 	c['LineString'] = ls_geoJSON
-	print(ls_geoJSON)
 	return c
 
 def get_MultiLineString(c):
@@ -159,19 +158,18 @@ def repair_tags(c):
 				tag_obj[k] = [v]
 			elif v not in tag_obj[k]:
 				tag_obj[k].append(v)
-				
+
 	c['tags'] = tag_obj
 	return c
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
-def get_distance(c):
+# def get_distance(c):
 	# multiLine= []
 	# length = 0
 	# for lineString in c['geoJSON']['coordinates']:
 	# 	length += line_length(lineString)
 	# c['trail_distance_meters'] = length
 	# length = 0
-	pass
 	# return c
 
 
