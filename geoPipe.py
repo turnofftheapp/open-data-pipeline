@@ -8,7 +8,8 @@ import os
 import math
 from tqdm import tqdm
 from sqlalchemy import create_engine	
-
+import sql
+import psycopg2 as pg
 ## Add ability to collect user input
 
 
@@ -212,23 +213,27 @@ def main():
 	# 9. Repair tags
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
 
-	trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
+	#trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
+	trail_df = trail_df.applymap(lambda x: str(x))
 
 	# trail_df.to_csv('April9Trails.csv', index=False)
 
 	# convert every dictionary to a string
-	trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
-	print(trail_df.columns)
-	print(trail_df)
+	# trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
+	# print(trail_df.columns)
+	# print(trail_df)
 	
-	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
-	# 		'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
-	# 		+'/'+'totago',echo=False)
-	# #name = ['trail1','trail2']
-	# #df = pd.DataFrame(data = {'name' : name})
-	# trail_df.to_sql(name='destination_michigan', con=engine, if_exists = 'replace', index=False)
-	# data = pd.read_sql('SELECT * FROM destination_michigan', engine)
-	# print(data)
+	engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
+			'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
+			+'/'+'totago',echo=False)
+	con = engine.connect()
+	
+	#name = ['trail1','trail2']
+	#df = pd.DataFrame(data = {'name' : name})
+	trail_df.to_sql(name='destination_michigan', con=con, if_exists = 'replace', index=False)
+	data = pd.read_sql('SELECT * FROM destination_michigan', engine)
+	print(data)
+
 
 
 
