@@ -7,7 +7,7 @@ import json
 import os
 import math
 from tqdm import tqdm
-
+from sqlalchemy import create_engine	
 
 ## Add ability to collect user input
 
@@ -185,7 +185,6 @@ def main():
 	way_df = pd.DataFrame(ways)
 	node_df = pd.DataFrame(nodes)
 
-
 	# 3. 
 	# get all nodes lat and lon for each way
 	print("injecting node coordinates into ways")
@@ -212,13 +211,24 @@ def main():
 
 	# 9. Repair tags
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
-	
+
+	trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
+
+	# trail_df.to_csv('April9Trails.csv', index=False)
+
+	# convert every dictionary to a string
+	trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
 	print(trail_df.columns)
 	print(trail_df)
-	# trail_df.to_csv('polyline_check_max_dist_10.csv', columns=['id', 'name', 'polyline'], index=False, header=['id', 'name', 'polyline'])
-
 	
-
+	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
+	# 		'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
+	# 		+'/'+'totago',echo=False)
+	# #name = ['trail1','trail2']
+	# #df = pd.DataFrame(data = {'name' : name})
+	# trail_df.to_sql(name='destination_michigan', con=engine, if_exists = 'replace', index=False)
+	# data = pd.read_sql('SELECT * FROM destination_michigan', engine)
+	# print(data)
 
 
 

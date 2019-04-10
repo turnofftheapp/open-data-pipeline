@@ -162,6 +162,12 @@ def repair_tags(c):
 	c['tags'] = tag_obj
 	return c
 
+def to_string(c, df):
+	for label in df.columns:
+		if type(c[label]) == dict:
+			c[label] = str(c[label])
+	return c
+
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
 # def get_distance(c):
 	# multiLine= []
