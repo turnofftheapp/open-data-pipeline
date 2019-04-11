@@ -13,7 +13,7 @@ from collections import deque
 from itertools import chain
 
 
-MAX_DIST_BETWEEN_WAYS = 10
+MAX_DIST_BETWEEN_WAYS = 9999999
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -162,32 +162,22 @@ def repair_tags(c):
 	c['tags'] = tag_obj
 	return c
 
-def to_string(c, df):
-	for label in df.columns:
-		if type(c[label]) == dict:
-			c[label] = str(c[label])
-	return c
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
 # def get_distance(c):
-	# multiLine= []
-	# length = 0
-	# for lineString in c['geoJSON']['coordinates']:
-	# 	length += line_length(lineString)
-	# c['trail_distance_meters'] = length
-	# length = 0
-	# return c
+# 	trail_geoJ_LineString = c['LineString']
+# 	print
 
 
-	# for node in c['nodes']:
-	# 	## for geopy we need to reverse the order of the coords
-	# 	multiLine.append((float(node['lat']), float(node['lon'])))
-	# for line in multiLine:
-	# 	length += line_length(line)
+# 	for node in c['nodes']:
+# 		## for geopy we need to reverse the order of the coords
+# 		multiLine.append((float(node['lat']), float(node['lon'])))
+# 	for line in multiLine:
+# 		length += line_length(line)
 	
-	# c['trail_distance_meters'] = length
-	# length = 0
-	# return c
+# 	c['trail_distance_meters'] = length
+# 	length = 0
+# 	return c
 
 
 
@@ -259,7 +249,7 @@ def order_ways(trail_obj, way_list):
 	'''
 	# break recurse if there are no remaining unbound ways
 	if len(way_list) == 0:
-		return(trail_obj, way_list)
+		return(list(trail_obj), list(way_list))
 	
 	# use deque from collections lib instead of list for more efficient appending (and prepending)
 	trail_obj = deque(trail_obj)
@@ -302,8 +292,6 @@ def order_ways(trail_obj, way_list):
 			way_min_dist = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
-		else:
-			method = 'gap too large'
 
 		# if way_min_dist > MAX_DIST_BETWEEN_WAYS:
 		# 	flag = ""
@@ -353,6 +341,10 @@ def order_ways(trail_obj, way_list):
 # print(list(o[0]))
 # print(list(o[1]))
 
+# ls_geoJSON = {"type":"LineString", "coordinates": []}
+# for node in list(chain.from_iterable(o[0])):
+# 		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
+# print(ls_geoJSON)
 
 
 

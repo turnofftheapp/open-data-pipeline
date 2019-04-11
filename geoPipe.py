@@ -8,7 +8,6 @@ import os
 import math
 from tqdm import tqdm
 from sqlalchemy import create_engine	
-import sql
 import psycopg2 as pg
 ## Add ability to collect user input
 
@@ -200,11 +199,13 @@ def main():
 	trail_df = group_trails(way_df)
 
 	# 6. Order ways within each trail
-	print("transforming ways to trail geojsons")
+	print("ordering ways")
 	trail_df = trail_df.progress_apply(repair_ways, axis=1)
 
 	# 7. Get geoJSON objects for each trail
+	print("converting to geoJSON LineString")
 	trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
+	print("converting to geoJSON MultiLineString")
 	trail_df = trail_df.apply(util.get_LineString, axis=1)
 
 	# 8. Encode polyline
@@ -213,26 +214,35 @@ def main():
 	# 9. Repair tags
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
 
-	#trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
-	trail_df = trail_df.applymap(lambda x: str(x))
+	print(trail_df)
+
+
 
 	# trail_df.to_csv('April9Trails.csv', index=False)
+	# 10. Calculate distance of trail (using LineString)
 
-	# convert every dictionary to a string
-	# trail_df = trail_df.apply(util.to_string, args=[trail_df], axis=1)
-	# print(trail_df.columns)
-	# print(trail_df)
+
+	# 11. Convert all types to string, makes db insertion easier
+	trail_df = trail_df.applymap(lambda x: str(x))
+
+
+
+
+
+
+
+	# Final. Insert everything into database
+	# print("inserting into database...")
+	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
+	# 		'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
+	# 		+'/'+'totago',echo=False)
+	# con = engine.connect()
 	
-	engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
-			'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
-			+'/'+'totago',echo=False)
-	con = engine.connect()
-	
-	#name = ['trail1','trail2']
-	#df = pd.DataFrame(data = {'name' : name})
-	trail_df.to_sql(name='destination_michigan', con=con, if_exists = 'replace', index=False)
-	data = pd.read_sql('SELECT * FROM destination_michigan', engine)
-	print(data)
+	# #name = ['trail1','trail2']
+	# #df = pd.DataFrame(data = {'name' : name})
+	# trail_df.to_sql(name='destination_michigan', con=con, if_exists = 'replace', index=False)
+	# data = pd.read_sql('SELECT * FROM destination_michigan', engine)
+	# print(data)
 
 
 
