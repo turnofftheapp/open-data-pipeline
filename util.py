@@ -164,20 +164,30 @@ def repair_tags(c):
 
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
-# def get_distance(c):
-# 	trail_geoJ_LineString = c['LineString']
-# 	print
-
-
-# 	for node in c['nodes']:
-# 		## for geopy we need to reverse the order of the coords
-# 		multiLine.append((float(node['lat']), float(node['lon'])))
-# 	for line in multiLine:
-# 		length += line_length(line)
+def get_distance(c):
+	try:
 	
-# 	c['trail_distance_meters'] = length
-# 	length = 0
-# 	return c
+		length = 0
+
+		line = c['LineString']['coordinates']
+		length = line_length(line)
+
+		c['trail_distance_meters'] = length
+	except Exception as e: 
+		print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
+	return c
+
+
+
+
+	# for node in c['nodes']:
+	# 	## for geopy we need to reverse the order of the coords
+	# 	multiLine.append((float(node['lat']), float(node['lon'])))
+	# for line in multiLine:
+	# 	length += line_length(line)
+	
+	# c['trail_distance_meters'] = length
+	# length = 0
 
 
 
@@ -191,8 +201,8 @@ def line_length(line):
 	Returns:
 		Length of line in meters
 	"""
-
-	return sum(distance(a, b).miles for (a, b) in pairs(line))
+	# b, a because the distance calculation requires latitude, longitude or y, x in cartesian terms
+	return sum(distance(a, b).meters for (a, b) in pairs(line))
 
 
 def pairs(lineString):
@@ -220,14 +230,6 @@ def pairs(lineString):
 		# print(prev, item)
 		prev = item
 
-# def get_node_distance(node1, node2):
-# 	if node1["id"] == node2["id"]:
-# 		return 0
-# 	else:
-# 		node1 = (node1['lat'], node1['lon'])
-# 		node2 = (node2['lat'], node2['lon'])
-# 		print(int(str(distance(node1, node2))))
-# 		return 0
 
 def get_node_distance(node1, node2): 
 	[x1, y1] = node1['lat'], node1['lon']

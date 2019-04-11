@@ -40,18 +40,15 @@ def queryOSM(state):
 	area = util.get_state_area_id(state)
 
 		# Query for all of michigan
-	# query = '[out:json][timeout:25]; \
-	# 		area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-	# 		(area.searchArea););(._;>;);out;'.format(area)
-		# Query for small subset
-	# query = '[out:json][timeout:25];  \
-	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-	# 		(44.14575420090964,-84.83779907226562,44.583620922396136,-84.04129028320312););(._;>;);out;'
+	query = '[out:json][timeout:25]; \
+			area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+			(area.searchArea););(._;>;);out;'.format(area)
+
 
 		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
-	query = '[out:json][timeout:25]; \
-			(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-			(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
+	# query = '[out:json][timeout:25]; \
+	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# 		(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -209,37 +206,40 @@ def main():
 	trail_df = trail_df.apply(util.get_LineString, axis=1)
 
 	# 8. Encode polyline
+	print("encoding polyline")
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
 	# 9. Repair tags
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
 
-	print(trail_df)
+
 
 
 
 	# trail_df.to_csv('April9Trails.csv', index=False)
-	# 10. Calculate distance of trail (using LineString)
+	#10. Calculate distance of trail (using LineString)
+	trail_df = trail_df.apply(util.get_distance, axis=1)
 
-
-	# 11. Convert all types to string, makes db insertion easier
-	trail_df = trail_df.applymap(lambda x: str(x))
-
-
-
+	# print(trail_df.columns)
+	print(trail_df[['name', 'trail_distance_meters']])
 
 
 
 
-	# Final. Insert everything into database
+
+
+
+
+
+	# #Final. Insert everything into database
+	# #Convert all types to string, makes db insertion easier
+	# trail_df = trail_df.applymap(lambda x: str(x))
 	# print("inserting into database...")
 	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
 	# 		'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
 	# 		+'/'+'totago',echo=False)
 	# con = engine.connect()
 	
-	# #name = ['trail1','trail2']
-	# #df = pd.DataFrame(data = {'name' : name})
 	# trail_df.to_sql(name='destination_michigan', con=con, if_exists = 'replace', index=False)
 	# data = pd.read_sql('SELECT * FROM destination_michigan', engine)
 	# print(data)
