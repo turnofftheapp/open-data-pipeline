@@ -13,7 +13,8 @@ from collections import deque
 from itertools import chain
 
 
-MAX_DIST_BETWEEN_WAYS = 999999999
+MAX_DIST_BETWEEN_WAYS = 100
+# meters
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -257,7 +258,9 @@ def order_ways(trail_obj, way_list, flags=[]):
 	'''
 	# break recurse if there are no remaining unbound ways
 	if len(way_list) == 0:
-		return(list(trail_obj), list(way_list), flags)
+		flags_copy = flags
+		flags = []
+		return(list(trail_obj), list(way_list), flags_copy)
 	
 	# use deque from collections lib instead of list for more efficient appending (and prepending)
 	trail_obj = deque(trail_obj)
@@ -266,6 +269,7 @@ def order_ways(trail_obj, way_list, flags=[]):
 	repair_distance = 999999 
 
 	for way in way_list:
+		flags = []
 
 		way_start = way[0]
 		way_end = way[-1]
@@ -292,35 +296,36 @@ def order_ways(trail_obj, way_list, flags=[]):
 			repair_distance = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
+		
+		if repair_distance > MAX_DIST_BETWEEN_WAYS:
+			flags.append('repair gap size: '+ str(repair_distance) + " meters")
 
 	if method == 'prepend':
 		trail_obj.appendleft(winner_way)
-		# print(method + " way " + str(len(winner_way)))
+		print(method + " way " + str(len(winner_way)))
 	elif method == 'append':
 		trail_obj.append(winner_way)
-		# print(method + " way " + str(len(winner_way)))
+		print(method + " way " + str(len(winner_way)))
 	elif method == 'prepend inverted':
 		winner_way.reverse()
 		trail_obj.appendleft(winner_way)
-		# print(method + " way " + str(len(winner_way)))
+		print(method + " way " + str(len(winner_way)))
 	elif method == 'append inverted':
 		winner_way.reverse()
 		trail_obj.append(winner_way)
-		# print(method + " way " + str(len(winner_way)))
+		print(method + " way " + str(len(winner_way)))
 	# else:
 	# 	print("huh?")
 
 	way_list.remove(winner_way)
-	if repair_distance > MAX_DIST_BETWEEN_WAYS:
-		flags.append("large gap on way")
 
-	# # for debug
-	# print("\n")
-	# print("running order_ways...")
-	# print("trail obj is size: " + str(len(trail_obj)))
-	# print("way obj is size: " + str(len(way_list)))
-	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
-	# print("repair size: " + str(repair_distance) + " meters")
+	# for debug
+	print("\n")
+	print("running order_ways...")
+	print("trail obj is size: " + str(len(trail_obj)))
+	print("way obj is size: " + str(len(way_list)))
+	print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+	print("repair size: " + str(repair_distance) + " meters")
 
 	return(order_ways(trail_obj, way_list, flags))
 

@@ -149,6 +149,7 @@ def repair_ways(c):
 	way_list = c.ways
 	trail_obj = [way_list[0]]
 	way_list = way_list[1:]
+	print(c['name'])
 	o = util.order_ways(trail_obj, way_list)
 	c['ways_ordered'] = o[0]
 	try:	
