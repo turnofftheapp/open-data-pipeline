@@ -168,15 +168,16 @@ def get_distance(c):
 	try:
 	
 		length = 0
-
 		line = c['LineString']['coordinates']
 		for pair in pairs(line):
 			length = length + distance(pair[0], pair[1]).meters
 
 
 		c['trail_distance_meters'] = length
+		# print("worked")
 	except Exception as e: 
-		print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
+		# print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
+		pass
 	return c
 
 

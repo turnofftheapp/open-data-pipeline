@@ -214,15 +214,13 @@ def main():
 
 	# 10. Get trail endpoints
 	trail_df = trail_df.apply(util.pop_endpoints, axis=1)
+	# 11. Calculate distance of trail (using LineString)
+	trail_df = trail_df.apply(util.get_distance, axis=1)
+
+
 
 	print(trail_df.columns)
-	print(trail_df)
-	# trail_df.to_csv('April9Trails.csv', index=False)
-	#10. Calculate distance of trail (using LineString)
-	# trail_df = trail_df.apply(util.get_distance)
-
-	# print(trail_df.columns)
-	# print(trail_df[['name', 'trail_distance_meters', 'polyline']])
+	print(trail_df[['name', 'trail_distance_meters', 'polyline']])
 
 
 
