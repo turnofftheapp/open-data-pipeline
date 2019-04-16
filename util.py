@@ -171,13 +171,18 @@ def get_distance(c):
 		length = 0
 		line = c['LineString']['coordinates']
 		for pair in pairs(line):
-			length = length + distance(pair[0], pair[1]).meters
+			begin_lat = pair[0][1]
+			begin_lon = pair[0][0]
+			end_lat = pair[1][1]
+			end_lon = pair[1][0]
+
+			length = length + distance((begin_lat, begin_lon), (end_lat, end_lon)).meters
 
 
 		c['trail_distance_meters'] = length
 		# print("worked")
 	except Exception as e: 
-		# print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
+		print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
 		pass
 	return c
 
@@ -242,7 +247,8 @@ def get_node_distance(node1, node2):
 	return dist 
 
 def get_node_distance_meters(node1, node2):
-	return distance((node1['lon'], node1['lat']), (node2['lon'], node2['lat'])).meters
+	return distance((node1['lat'], node1['lon']), (node2['lat'], node2['lon'])).meters
+
 
 def order_ways(trail_obj, way_list, flags=[]):
 	''' Bring order to our lists of ways
@@ -296,36 +302,36 @@ def order_ways(trail_obj, way_list, flags=[]):
 			repair_distance = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
-		
+		# print(str(repair_distance) + " meters")
 		if repair_distance > MAX_DIST_BETWEEN_WAYS:
 			flags.append('repair gap size: '+ str(repair_distance) + " meters")
 
 	if method == 'prepend':
 		trail_obj.appendleft(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'append':
 		trail_obj.append(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'prepend inverted':
 		winner_way.reverse()
 		trail_obj.appendleft(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	elif method == 'append inverted':
 		winner_way.reverse()
 		trail_obj.append(winner_way)
-		print(method + " way " + str(len(winner_way)))
+		# print(method + " way " + str(len(winner_way)))
 	# else:
 	# 	print("huh?")
 
 	way_list.remove(winner_way)
 
 	# for debug
-	print("\n")
-	print("running order_ways...")
-	print("trail obj is size: " + str(len(trail_obj)))
-	print("way obj is size: " + str(len(way_list)))
-	print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
-	print("repair size: " + str(repair_distance) + " meters")
+	# print("\n")
+	# print("running order_ways...")
+	# print("trail obj is size: " + str(len(trail_obj)))
+	# print("way obj is size: " + str(len(way_list)))
+	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+	# print("repair size: " + str(repair_distance) + " meters")
 
 	return(order_ways(trail_obj, way_list, flags))
 
@@ -345,6 +351,31 @@ def pop_endpoints(c):
 	c['trail_end'] = {'lat':trail_end['lat'], 'lon':trail_end['lon']}
 	return c
 
+def is_loop(c):
+	if c['trail_start']['lat'] == c['trail_end']['lat'] and c['trail_start']['lon'] == c['trail_end']['lon']:
+		c['thru_hike'] = True
+		#print('Loop') # Debugging
+	else:
+		if distance((c['trail_start']['lat'], c['trail_start']['lon']), (c['trail_end']['lat'], c['trail_end']['lon'])).meters < 20:
+			c['thru_hike'] = True
+			#print('Incomplete Loop') # Debugging
+		else:
+			c['thru_hike'] = False
+			#print('Out-and-Back') # Debugging
+	return c
+
+def get_bus(c):
+	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r=20000'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']))
+	head_json = json.loads(requests.get(head_query).text)
+	if len(head_json['stops']) > 0:
+		c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in head_json['stops'][:2]]
+	tail_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r=800'.format(str(c['trail_end']['lon']),str(c['trail_end']['lat']))
+	tail_json = json.loads(requests.get(tail_query).text)
+	if len(tail_json['stops']) > 0:
+		# print("found bus end")
+		if len(tail_json['stops']) > len(head_json['stops']):
+			c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in tail_json['stops'][:2]]
+	return c
 
 
 # with open('trail.json') as f:  
