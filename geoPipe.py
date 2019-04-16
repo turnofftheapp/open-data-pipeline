@@ -8,7 +8,7 @@ import os
 import math
 from tqdm import tqdm
 from sqlalchemy import create_engine	
-import psycopg2 as pg
+# import psycopg2 as pg
 ## Add ability to collect user input
 
 
@@ -39,16 +39,16 @@ def queryOSM(state):
 
 	area = util.get_state_area_id(state)
 
-		# Query for all of michigan
-	query = '[out:json][timeout:25]; \
-			area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-			(area.searchArea););(._;>;);out;'.format(area)
+	# Query for all of michigan
+	# query = '[out:json][timeout:25]; \
+	# 		area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# 		(area.searchArea););(._;>;);out;'.format(area)
 
 
 		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
-	# query = '[out:json][timeout:25]; \
-	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-	# 		(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
+	query = '[out:json][timeout:25]; \
+			(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+			(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -212,16 +212,17 @@ def main():
 	# 9. Repair tags
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
 
+	# 10. Get trail endpoints
+	trail_df = trail_df.apply(util.pop_endpoints, axis=1)
 
-
-
-
+	print(trail_df.columns)
+	print(trail_df)
 	# trail_df.to_csv('April9Trails.csv', index=False)
 	#10. Calculate distance of trail (using LineString)
-	trail_df = trail_df.apply(util.get_distance, axis=1)
+	# trail_df = trail_df.apply(util.get_distance)
 
 	# print(trail_df.columns)
-	print(trail_df[['name', 'trail_distance_meters']])
+	# print(trail_df[['name', 'trail_distance_meters', 'polyline']])
 
 
 
@@ -231,8 +232,8 @@ def main():
 
 
 
-	# #Final. Insert everything into database
-	# #Convert all types to string, makes db insertion easier
+	# Final. Insert everything into database
+	# Convert all types to string, makes db insertion easier
 	# trail_df = trail_df.applymap(lambda x: str(x))
 	# print("inserting into database...")
 	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \

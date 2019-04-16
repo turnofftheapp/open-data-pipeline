@@ -170,7 +170,9 @@ def get_distance(c):
 		length = 0
 
 		line = c['LineString']['coordinates']
-		length = line_length(line)
+		for pair in pairs(line):
+			length = length + distance(pair[0], pair[1]).meters
+
 
 		c['trail_distance_meters'] = length
 	except Exception as e: 
@@ -237,6 +239,9 @@ def get_node_distance(node1, node2):
 	dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
 	return dist 
 
+def get_node_distance_meters(node1, node2):
+	return distance((node1['lon'], node1['lat']), (node2['lon'], node2['lat'])).meters
+
 def order_ways(trail_obj, way_list):
 	''' Bring order to our lists of ways
 
@@ -257,13 +262,6 @@ def order_ways(trail_obj, way_list):
 	trail_obj = deque(trail_obj)
 	trail_start = trail_obj[0][0]
 	trail_end = trail_obj[-1][-1]
-
-	# # for debug
-	# print("\n")
-	# print("running order_ways...")
-	# print("trail obj is size: " + str(len(trail_obj)))
-	# print("way obj is size: " + str(len(way_list)))
-	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
 
 	way_min_dist = MAX_DIST_BETWEEN_WAYS 
 
@@ -295,11 +293,6 @@ def order_ways(trail_obj, way_list):
 			method = 'append inverted'
 			winner_way = way
 
-		# if way_min_dist > MAX_DIST_BETWEEN_WAYS:
-		# 	flag = ""
-
-
-
 	if method == 'prepend':
 		trail_obj.appendleft(winner_way)
 		# print(method + " way " + str(len(winner_way)))
@@ -319,6 +312,14 @@ def order_ways(trail_obj, way_list):
 
 	way_list.remove(winner_way)
 
+	# for debug
+	# print("\n")
+	# print("running order_ways...")
+	# print("trail obj is size: " + str(len(trail_obj)))
+	# print("way obj is size: " + str(len(way_list)))
+	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
+	# print("repair size: " + str(way_min_dist))
+
 	return(order_ways(trail_obj, way_list))
 
 
@@ -326,8 +327,17 @@ def order_ways(trail_obj, way_list):
 
 		# print(str(way) + "\n" + str(i) + "\n" + str(way_min_dist))
 
+def pop_endpoints(c):
+	'''for each trail, create columns trail_start and trail_end
+	args: c iterator object
+	returns: row with 2 new columns
+	'''
+	trail_start = c['ways_ordered'][0][0]
+	trail_end = c['ways_ordered'][-1][-1]
 
-
+	c['trail_start'] = {'lat':trail_start['lat'], 'lon':trail_start['lon']}
+	c['trail_end'] = {'lat':trail_end['lat'], 'lon':trail_end['lon']}
+	return c
 
 
 
