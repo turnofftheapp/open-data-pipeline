@@ -151,6 +151,11 @@ def repair_ways(c):
 	way_list = way_list[1:]
 	o = util.order_ways(trail_obj, way_list)
 	c['ways_ordered'] = o[0]
+	try:	
+		c['flags'] = o[2]
+	except Exception:
+		# no flags!
+		pass
 	return c
 
 
@@ -220,7 +225,7 @@ def main():
 
 
 	print(trail_df.columns)
-	print(trail_df[['name', 'trail_distance_meters', 'polyline']])
+	print(trail_df)
 
 
 

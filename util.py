@@ -13,7 +13,7 @@ from collections import deque
 from itertools import chain
 
 
-MAX_DIST_BETWEEN_WAYS = 9999999
+MAX_DIST_BETWEEN_WAYS = 999999999
 
 ## IN: country, region
 ## OUT: Overpass region code
@@ -243,7 +243,7 @@ def get_node_distance(node1, node2):
 def get_node_distance_meters(node1, node2):
 	return distance((node1['lon'], node1['lat']), (node2['lon'], node2['lat'])).meters
 
-def order_ways(trail_obj, way_list):
+def order_ways(trail_obj, way_list, flags=[]):
 	''' Bring order to our lists of ways
 
 	Args: 
@@ -257,40 +257,39 @@ def order_ways(trail_obj, way_list):
 	'''
 	# break recurse if there are no remaining unbound ways
 	if len(way_list) == 0:
-		return(list(trail_obj), list(way_list))
+		return(list(trail_obj), list(way_list), flags)
 	
 	# use deque from collections lib instead of list for more efficient appending (and prepending)
 	trail_obj = deque(trail_obj)
 	trail_start = trail_obj[0][0]
 	trail_end = trail_obj[-1][-1]
-
-	way_min_dist = MAX_DIST_BETWEEN_WAYS 
+	repair_distance = 999999 
 
 	for way in way_list:
 
 		way_start = way[0]
 		way_end = way[-1]
 
-		front_dist = get_node_distance(trail_start, way_end)
-		end_dist = get_node_distance(trail_end, way_start)
+		front_dist = get_node_distance_meters(trail_start, way_end)
+		end_dist = get_node_distance_meters(trail_end, way_start)
 		# if a way must be inverted
-		front_dist_invert = get_node_distance(trail_start, way_start)
-		end_dist_invert = get_node_distance(trail_end, way_end)
+		front_dist_invert = get_node_distance_meters(trail_start, way_start)
+		end_dist_invert = get_node_distance_meters(trail_end, way_end)
 
-		if front_dist < way_min_dist:
-			way_min_dist = front_dist
+		if front_dist < repair_distance:
+			repair_distance = front_dist
 			method = 'prepend'
 			winner_way = way
-		if end_dist < way_min_dist:
-			way_min_dist = end_dist
+		if end_dist < repair_distance:
+			repair_distance = end_dist
 			method = 'append'
 			winner_way = way
-		if front_dist_invert < way_min_dist:
-			way_min_dist = front_dist_invert
+		if front_dist_invert < repair_distance:
+			repair_distance = front_dist_invert
 			method = 'prepend inverted'
 			winner_way = way
-		if end_dist_invert < way_min_dist:
-			way_min_dist = end_dist_invert
+		if end_dist_invert < repair_distance:
+			repair_distance = end_dist_invert
 			method = 'append inverted'
 			winner_way = way
 
@@ -308,25 +307,26 @@ def order_ways(trail_obj, way_list):
 		winner_way.reverse()
 		trail_obj.append(winner_way)
 		# print(method + " way " + str(len(winner_way)))
-	else:
-		pass
+	# else:
+	# 	print("huh?")
 
 	way_list.remove(winner_way)
+	if repair_distance > MAX_DIST_BETWEEN_WAYS:
+		flags.append("large gap on way")
 
-	# for debug
+	# # for debug
 	# print("\n")
 	# print("running order_ways...")
 	# print("trail obj is size: " + str(len(trail_obj)))
 	# print("way obj is size: " + str(len(way_list)))
 	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
-	# print("repair size: " + str(way_min_dist))
+	# print("repair size: " + str(repair_distance) + " meters")
 
-	return(order_ways(trail_obj, way_list))
-
-
+	return(order_ways(trail_obj, way_list, flags))
 
 
-		# print(str(way) + "\n" + str(i) + "\n" + str(way_min_dist))
+
+		# print(str(way) + "\n" + str(i) + "\n" + str(repair_distance))
 
 def pop_endpoints(c):
 	'''for each trail, create columns trail_start and trail_end
