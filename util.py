@@ -116,7 +116,7 @@ def get_trail_end(c):
 def get_polyline(c, precision=5):
 	# list(chain.from_iterable(
 	nodes = []
-	for node in list(chain.from_iterable(c['ways_ordered'])):
+	for node in list(chain.from_iterable(c['trail_obj'])):
 		nodes.append((float(node['lat']), float(node['lon'])))
 	c['polyline'] = polyline.encode(nodes, precision)
 	return c
@@ -127,7 +127,7 @@ def get_LineString(c):
 	'''
 	ls_geoJSON = {"type":"LineString", "coordinates": []}
 	# make LineString
-	for node in list(chain.from_iterable(c['ways_ordered'])):
+	for node in list(chain.from_iterable(c['trail_obj'])):
 		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
 	c['LineString'] = ls_geoJSON
 	return c
@@ -138,7 +138,7 @@ def get_MultiLineString(c):
 	'''
 	mls_geoJSON = {"type":"MultiLineString", "coordinates": []}
 	# make MultiLineString
-	for way in list(c['ways']):
+	for way in list(c['trail_obj']):
 		way_coords = []
 		for node in way: 
 			way_coords.append([node['lon'], node['lat']])
@@ -344,8 +344,8 @@ def pop_endpoints(c):
 	args: c iterator object
 	returns: row with 2 new columns
 	'''
-	trail_start = c['ways_ordered'][0][0]
-	trail_end = c['ways_ordered'][-1][-1]
+	trail_start = c['trail_obj'][0][0]
+	trail_end = c['trail_obj'][-1][-1]
 
 	c['trail_start'] = {'lat':trail_start['lat'], 'lon':trail_start['lon']}
 	c['trail_end'] = {'lat':trail_end['lat'], 'lon':trail_end['lon']}

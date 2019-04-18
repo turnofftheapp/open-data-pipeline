@@ -8,6 +8,9 @@ import os
 import math
 from tqdm import tqdm
 from sqlalchemy import create_engine	
+from collections import deque
+import sys
+
 # import psycopg2 as pg
 ## Add ability to collect user input
 
@@ -113,53 +116,315 @@ def injectNodes(c, node_df):
 	c['nodes'] = node_objs
 	return c
 
-def group_trails(way_df):
-	''' creates new dataframe, 1 row for each name contianing lists of tags and ways for each old dataframe row,
-	id from first way
+MAX_REPAIR_DIST_METERS = 150
+def ways_to_trails(way_df, trail_df):
+	print("ways left = " + str(len(way_df)))
+	''' once we have finished creating the trail_df, return'''
+	if len(trail_df) == 0:
+		'''first time around'''
+	if len(way_df) == 0:
+		'''last time, exit'''
+		print("completely done")
+		return(way_df, trail_df)
 
-	'''
-	new_trails = []
-	trail_df = pd.DataFrame(columns=['id', 'name', 'ways', 'tags'])
-	for trail_name in way_df.name.unique():
-		ways_with_trail_name = way_df[way_df["name"] == trail_name]
+	''' pick a way from way_df to create a trail from'''
+	trail_start_way = way_df.iloc[0]
+	trail_name = trail_start_way['name']
+	trail_id = trail_start_way.id
+	''' get all the other ways with it's same name'''
+	ways_with_trail_name = way_df[way_df["name"] == trail_name]
 
-		trail_ways = list(ways_with_trail_name.nodes)
-		trail_tags = list(ways_with_trail_name.tags)
-		trail_id = list(ways_with_trail_name.id)[0]
+	trail_obj = deque([trail_start_way.nodes])
+	trail_tags = deque([trail_start_way.tags])
 
-		# print("trail: " + trail_name + "\n" 
-		# 	+ "ways: " + str(trail_ways) + "\n"
-		# 	+ "tags: " + str(trail_tags) + "\n"
-		# 	+ "id: " + str(trail_id) + "\n")
-		# print("-----------------------------------------")
 
-		new_trail = {
-					'id': trail_id, 
-					'name': trail_name,
-					'ways': trail_ways,
-					'tags': trail_tags
-					}
 
-		new_trails.append(new_trail)
+	way_df = way_df[way_df.id != trail_start_way.id]
 	
-	trail_df = pd.DataFrame(new_trails)
-	return trail_df
+	print("repairing ways on trail: " + trail_name)
+	print("starting with way_id " + str(trail_id))
 
-def repair_ways(c):
-	way_list = c.ways
-	trail_obj = [way_list[0]]
-	way_list = way_list[1:]
-	o = util.order_ways(trail_obj, way_list)
-	c['ways_ordered'] = o[0]
-	try:	
-		c['flags'] = o[2]
-	except Exception:
-		# no flags!
-		pass
-	return c
+	method = ''
+	print("entering while loop")
+	if method == 'no close ways':
+		print("not entering while loop")
+	while method != 'no close ways':
+		method = ''
+		''' always allow all remaining ways of the same name to be considered '''
+		ways_with_trail_name = way_df[way_df["name"] == trail_name]
+		print('ways_with_trail_name: ' + str(len(ways_with_trail_name)))
+		if len(ways_with_trail_name) == 0:
+
+			print("no ways found with that name")
+			break
+		trail_start = trail_obj[0][0]
+		trail_end = trail_obj[-1][-1]
+
+		repair_dist = MAX_REPAIR_DIST_METERS
+		print("entering for loop")
+
+		for index, way in ways_with_trail_name.iterrows():
+
+			print("looking at way: " + str(way.id))
+			way_id = way.id
+			way_nodes = [way.nodes]
+
+			way_start = way_nodes[0][0]
+			way_end = way_nodes[-1][-1]
+
+
+			prepend_dist = util.get_node_distance_meters(trail_start, way_end)
+			append_dist = util.get_node_distance_meters(trail_end, way_start)
+
+			prepend_dist_inverted = util.get_node_distance_meters(trail_start, way_start)
+			append_dist_inverted = util.get_node_distance_meters(trail_end, way_end)
+
+			print(str(prepend_dist) + " " + str(append_dist) + " " + str(prepend_dist_inverted) + " " + str(append_dist_inverted)) 
+
+			if prepend_dist < repair_dist:
+				repair_dist = prepend_dist
+				method = 'prepend'
+				closest_way = way
+			if append_dist < repair_dist:
+				repair_dist = append_dist
+				method = 'append'
+				closest_way = way
+			if prepend_dist_inverted < repair_dist:
+				repair_dist = prepend_dist_inverted
+				method = 'prepend_inverted'
+				closest_way = way
+			if append_dist_inverted < repair_dist:
+				repair_dist = append_dist_inverted
+				method = 'append_inverted'
+				closest_way = way
+
+		print("for loop done")
+
+		if method == '':
+			method = 'no close ways'
+
+		# if method == "no close ways":
+
+		# 	return(ways_to_trails(way_df, trail_df))
+		print("decided to use method: " + method)
+		if method == 'prepend':
+			trail_obj.appendleft(closest_way.nodes)
+			trail_tags.appendleft(closest_way.tags)
+			way_df = way_df[way_df.id != closest_way.id]
+			print(method + " way " + str(closest_way.id))
+
+		elif method == 'append':
+			trail_obj.append(closest_way.nodes)
+			trail_tags.append(closest_way.tags)
+			way_df = way_df[way_df.id != closest_way.id]
+			print(method + " way " + str(closest_way.id))
+
+		elif method == 'prepend_inverted':
+			closest_way.nodes.reverse()
+			trail_obj.appendleft(closest_way.nodes)
+			trail_tags.appendleft(closest_way.tags)
+			way_df = way_df[way_df.id != closest_way.id]
+			print(method + " way " + str(closest_way.id))
+
+		elif method == 'append_inverted':
+			closest_way.nodes.reverse()
+			trail_obj.append(closest_way.nodes)
+			trail_tags.append(closest_way.tags)
+			way_df = way_df[way_df.id != closest_way.id]
+			print(method + " way " + str(closest_way.id))
+		print("\n")
+
+	trail_df.append({
+		'id': trail_id,
+		'name': trail_name,
+		'trail_obj': trail_obj,
+		'tags': trail_tags})
+	# print(trail_df)
+
+
+
+	# print(ways_with_trail_name)
+
+	print("\n")
+
+
+	return(ways_to_trails(way_df, trail_df))
+	# for trail_name in way_df.name.unique():
+	# 	print("***********************************************")
+	# 	ways_with_trail_name = way_df[way_df["name"] == trail_name]
+	# 	print(way)
+		# trail_obj = trail_obj_response[1]
+		# trail_tags = trail_obj_response[2]
+		# unused_ways = trail_obj_response[0]
+	# 	trail_ways = list(ways_with_trail_name.nodes)
+	# print(way_df.loc[25, :])
+
+	# 	trail_ways = list(ways_with_trail_name.nodes)
+	# 	print(trail_ways)
+# MAX_REPAIR_DIST_METERS = 100
+# def get_trail_obj(waylist, trail_obj, all_trail_tags, trail_tags):
+
+# 	'''RECURSE-END CHECK
+# 	'''
+# 	# print("--------------------------------------------------")
+# 	# print("waylist")
+# 	# print(waylist)
+# 	# print(len(waylist))
+# 	# print("trail_obj")
+# 	# print(trail_obj)
+# 	# print(len(trail_obj))
+# 	# print("tags")
+# 	# print(trail_tags)
+# 	# print("--------------------------------------------------")
+
+# 	if len(waylist) == 0:
+# 		print("exhausted ways")
+# 		return(waylist, trail_obj, all_trail_tags, trail_tags)
+# 	repair_dist = MAX_REPAIR_DIST_METERS
+
+# 	trail_obj = deque(trail_obj)
+# 	trail_start = trail_obj[0][0]
+# 	trail_end = trail_obj[-1][-1]
+
+# 	trail_tags = deque([])
+
+# 	method = ''
+# 	print("run")
+# 	for index, way in enumerate(waylist):
+# 		print("looking for next way")
+# 		way_start = way[0]
+# 		way_end = way[-1]
+
+# 		prepend_dist = util.get_node_distance_meters(trail_start, way_end)
+# 		append_dist = util.get_node_distance_meters(trail_end, way_start)
+
+# 		prepend_dist_inverted = util.get_node_distance_meters(trail_start, way_start)
+# 		append_dist_inverted = util.get_node_distance_meters(trail_end, way_end)
+
+# 		print(str(prepend_dist) + " " + str(append_dist) + " " + str(prepend_dist_inverted) + " " + str(append_dist_inverted) + "\n")
+# 		if prepend_dist < repair_dist:
+# 			repair_dist = prepend_dist
+# 			method = 'prepend'
+# 			closest_way = way
+# 			tags = all_trail_tags[index]
+# 		if append_dist < repair_dist:
+# 			repair_dist = append_dist
+# 			method = 'append'
+# 			closest_way = way
+# 			tags = all_trail_tags[index]
+# 		if prepend_dist_inverted < repair_dist:
+# 			repair_dist = prepend_dist_inverted
+# 			method = 'prepend_inverted'
+# 			closest_way = way
+# 			tags = all_trail_tags[index]
+# 		if append_dist_inverted < repair_dist:
+# 			repair_dist = append_dist_inverted
+# 			method = 'append_inverted'
+# 			closest_way = way
+# 			tags = all_trail_tags[index]
+# 		elif repair_dist == MAX_REPAIR_DIST_METERS:
+# 			method = "no close ways"
+
+# 	print("repair distance is : " + str(repair_dist))
+# 	if method == "no close ways": 
+# 		print(method)
+# 		return(waylist, trail_obj, all_trail_tags, trail_tags)
+
+# 	if method == 'prepend':
+# 		trail_obj.appendleft(closest_way)
+# 		trail_tags.appendleft(tags)
+# 		waylist.remove(closest_way)
+# 		all_trail_tags.remove(tags)
+# 		print(method)
+# 	# print(method + " way " + str(len(closest_way)))
+# 	elif method == 'append':
+# 		trail_obj.append(closest_way)
+# 		trail_tags.append(tags)
+# 		waylist.remove(closest_way)
+# 		all_trail_tags.remove(tags)
+# 		print(method)
+# 		# print(method + " way " + str(len(closest_way)))
+# 	elif method == 'prepend_inverted':
+# 		closest_way.reverse()
+# 		trail_obj.appendleft(closest_way)
+# 		trail_tags.appendleft(tags)
+# 		waylist.remove(closest_way)
+# 		all_trail_tags.remove(tags)
+# 		print(method)
+
+# 		# print(method + " way " + str(len(closest_way)))
+# 	elif method == 'append_inverted':
+# 		closest_way.reverse()
+# 		trail_obj.append(closest_way)
+# 		trail_tags.append(tags)
+# 		waylist.remove(closest_way)
+# 		all_trail_tags.remove(tags)
+# 		print(method)
+
+
+
+# 	return(get_trail_obj(waylist, trail_obj, all_trail_tags, trail_tags))
+
+		
+
+
+			
+
+
+
+
+
+
+# def group_trails(way_df):
+# 	''' creates new dataframe, 1 row for each name contianing lists of tags and ways for each old dataframe row,
+# 	id from first way
+
+# 	'''
+# 	new_trails = []
+# 	trail_df = pd.DataFrame(columns=['id', 'name', 'ways', 'tags'])
+# 	for trail_name in way_df.name.unique():
+# 		ways_with_trail_name = way_df[way_df["name"] == trail_name]
+
+# 		trail_ways = list(ways_with_trail_name.nodes)
+# 		trail_tags = list(ways_with_trail_name.tags)
+# 		trail_id = list(ways_with_trail_name.id)[0]
+
+# 		# print("trail: " + trail_name + "\n" 
+# 		# 	+ "ways: " + str(trail_ways) + "\n"
+# 		# 	+ "tags: " + str(trail_tags) + "\n"
+# 		# 	+ "id: " + str(trail_id) + "\n")
+# 		# print("-----------------------------------------")
+
+# 		new_trail = {
+# 					'id': trail_id, 
+# 					'name': trail_name,
+# 					'ways': trail_ways,
+# 					'tags': trail_tags
+# 					}
+
+# 		new_trails.append(new_trail)
+	
+# 	trail_df = pd.DataFrame(new_trails)
+# 	return trail_df
+
+# def repair_ways(c):
+# 	way_list = c.ways
+# 	trail_obj = [way_list[0]]
+# 	way_list = way_list[1:]
+# 	o = util.order_ways(trail_obj, way_list)
+# 	c['ways_ordered'] = o[0]
+# 	try:	
+# 		c['flags'] = o[2]
+# 	except Exception:
+# 		# no flags!
+# 		pass
+# 	return c
 
 
 def main():
+	sys.setrecursionlimit(2000)
+
+
 	""" Executes pipeline logic
 	Process:
 			1) queries OSM 
@@ -197,12 +462,12 @@ def main():
 	way_df = way_df.progress_apply(util.get_name, axis=1)
 	# print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
 
-	# 5. Form new dataframe of trails
-	trail_df = group_trails(way_df)
+	# 5. Form new dataframe of trails, repair the ways within them
+	# trail_df_initial = pd.DataFrame(columns=['id', 'name', 'trail_obj', 'tags'])
+	trail_df_initial = []
+	trail_df_list = ways_to_trails(way_df, trail_df_initial)[1]
+	trail_df = pd.DataFrame(trail_df_list)
 
-	# 6. Order ways within each trail
-	print("ordering ways")
-	trail_df = trail_df.progress_apply(repair_ways, axis=1)
 
 	# 7. Get geoJSON objects for each trail
 	print("converting to geoJSON LineString")
@@ -210,10 +475,16 @@ def main():
 	print("converting to geoJSON MultiLineString")
 	trail_df = trail_df.apply(util.get_LineString, axis=1)
 
+
 	# 8. Encode polyline
 	print("encoding polyline")
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
+	for index,trail in trail_df.iterrows():
+		print(trail['name'])
+		print(trail['polyline'])
+		print(trail['LineString'])
+'''
 	# 9. Repair tags
 	print("repairing tags")
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
@@ -236,7 +507,7 @@ def main():
 	print(trail_df.columns)
 	print(trail_df)
 
-
+'''
 
 
 
