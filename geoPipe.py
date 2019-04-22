@@ -17,6 +17,7 @@ import sys
 
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
+import config
 
 DEBUG_MODE = False
 region = ""
@@ -350,8 +351,8 @@ def main():
 	# 14. Calculate elevation via totago API call
 
 	# 15. Find bus stops
-	# print("finding bus stops")
-	# trail_df = trail_df.progress_apply(util.get_bus, axis=1)
+	print("finding bus stops")
+	trail_df = trail_df.progress_apply(util.get_bus, axis=1)
 
 	print(trail_df.columns)
 	print(trail_df)
@@ -365,16 +366,17 @@ def main():
 
 	# Final. Insert everything into database
 	# Convert all types to string, makes db insertion easier
-	# trail_df = trail_df.applymap(lambda x: str(x))
-	# print("inserting into database...")
-	# engine = create_engine('postgresql://'+'awsuser'+':'+'7o04JsWRXuZT'+'@'+ \
-	# 		'totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com'+':'+'5432'\
-	# 		+'/'+'totago',echo=False)
-	# con = engine.connect()
+	tablename = 'destination_' + str(location.lower())
+	trail_df = trail_df.applymap(lambda x: str(x))
+	print("inserting into database...")
+	engine = create_engine('postgresql://'+ config.username +':'+config.password+'@'+ \
+			config.host+':'+'5432'\
+			+'/'+'totago',echo=False)
+	con = engine.connect()
 	
-	# trail_df.to_sql(name='destination_michigan', con=con, if_exists = 'replace', index=False)
-	# data = pd.read_sql('SELECT * FROM destination_michigan', engine)
-	# print(data)
+	trail_df.to_sql(name=tablename, con=con, if_exists = 'replace', index=False)
+	data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
+	print(data)
 
 
 
