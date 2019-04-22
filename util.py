@@ -26,6 +26,23 @@ def get_state_area_id(state_full_name):
 			states[line.split(',')[1].lower()] = int(line.split(',')[2])
 	return states[state]
 
+def get_area_code(state_full_name, country_full_name, base_code = 36000):
+	params = {"state": state_full_name,
+			  "country": country_full_name,
+			  "format": "json"
+			 }
+	url = "https://nominatim.openstreetmap.org/search?"
+	r = requests.get(url, params = params)
+	text = json.loads(r.text)[0]
+	code = int(str(base_code)+str(text["osm_id"]))
+	return code
+
+
+
+
+
+
+
 ## To be applied to df
 ## IN: row iterator object (c)
 ## OUT: new column containing presence and location of bus stop, we will use this to designate a trailhead
