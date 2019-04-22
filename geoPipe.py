@@ -20,7 +20,7 @@ import util
 import config
 
 DEBUG_MODE = False
-region = ""
+REGION = ""
 MAX_REPAIR_DIST_METERS = 150
 # WAYLIMIT = 100
 # requests_cache.install_cache('demo_cache')
@@ -266,7 +266,8 @@ def ways_to_trails(way_df, trail_df):
 
 def main():
 	sys.setrecursionlimit(5000)
-	region = "Ontario"
+	REGION = "Utah"
+	COUNTRY = ""
 
 	""" Executes pipeline logic
 	Process:
@@ -275,7 +276,7 @@ def main():
 			3) For each node in each way, replace the node ID with an dict object of: ID, lat, lon
 			4) Names each trail from tags
 	"""
-	print("Requesting trails for {}".format(region))
+	print("Requesting trails for {}".format(REGION))
 
 
 	# tqdm means "progress" in Arabic, this guy wraps iterables and predicts the time it'll take to run. 
@@ -285,7 +286,7 @@ def main():
 
 	# 1. query OSM and get list of elements
 	print("querying ways from OSM")
-	osmElements = queryOSM(region)
+	osmElements = queryOSM(REGION)
 
 	# 2. split OSM elements into ways and nodes
 	print("splitting elements")
@@ -296,6 +297,8 @@ def main():
 	way_df = pd.DataFrame(ways)
 	node_df = pd.DataFrame(nodes)
 
+	# for testing purposes only, pls remove
+	# way_df = way_df.head(100)
 	# 3. 
 	# get all nodes lat and lon for each way
 	print("injecting node coordinates into ways")
@@ -304,6 +307,7 @@ def main():
 	# 4. name each trail
 	print("naming trails")
 	way_df = way_df.progress_apply(util.get_name, axis=1)
+
 	# print(trail_df.loc[trail_df['name'] == 'Warren K. Wells Nature Trail'])
 
 	# 5. Form new dataframe of trails, repair the ways within them
@@ -312,6 +316,9 @@ def main():
 	trail_df_initial = []
 	trail_df_list = ways_to_trails(way_df, trail_df_initial)[1]
 	trail_df = pd.DataFrame(trail_df_list)
+
+	# 6. Adding column with region code
+	trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
 
 
 	# 7. Get geoJSON objects for each trail
@@ -338,6 +345,7 @@ def main():
 	# 10. Get trail endpoints
 	print("getting trail endpoints")
 	trail_df = trail_df.apply(util.pop_endpoints, axis=1)
+
 	# 11. Calculate distance of trail (using LineString)
 	print("calculating trail distances")
 	trail_df = trail_df.progress_apply(util.get_distance, axis=1)
@@ -346,11 +354,11 @@ def main():
 	print("determining trail shape")
 	trail_df = trail_df.apply(util.is_loop, axis=1)
 
-	# 13. Calculate Distance
+	# 13. Calculate elevation via totago API call
+	print("calling TOTAGO API for trail elevations")
+	# trail_df = trail_df.apply(util.get_elevation, axis=1)
 
-	# 14. Calculate elevation via totago API call
-
-	# 15. Find bus stops
+	# 14. Find bus stops
 	print("finding bus stops")
 	trail_df = trail_df.progress_apply(util.get_bus, axis=1)
 
@@ -366,17 +374,17 @@ def main():
 
 	# Final. Insert everything into database
 	# Convert all types to string, makes db insertion easier
-	tablename = 'destination_' + str(location.lower())
-	trail_df = trail_df.applymap(lambda x: str(x))
-	print("inserting into database...")
-	engine = create_engine('postgresql://'+ config.username +':'+config.password+'@'+ \
-			config.host+':'+'5432'\
-			+'/'+'totago',echo=False)
-	con = engine.connect()
+	# tablename = 'destination_' + str(location.lower())
+	# trail_df = trail_df.applymap(lambda x: str(x))
+	# print("inserting into database...")
+	# engine = create_engine('postgresql://'+ config.username +':'+config.password+'@'+ \
+	# 		config.host+':'+'5432'\
+	# 		+'/'+'totago',echo=False)
+	# con = engine.connect()
 	
-	trail_df.to_sql(name=tablename, con=con, if_exists = 'replace', index=False)
-	data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
-	print(data)
+	# trail_df.to_sql(name=tablename, con=con, if_exists = 'replace', index=False)
+	# data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
+	# print(data)
 
 
 

@@ -29,43 +29,35 @@ def get_state_area_id(state_full_name):
 
 
 
-def get_area_code(state_full_name, country_full_name="United States", base_code = 3600000000):
-	params = {"state": state_full_name,
-			  # "country": country_full_name,
-			  "format": "json"
-			 }
+def get_area_code(state_full_name, country_full_name="", base_code = 3600000000):
+	if country_full_name != "":
+		params = {"state": state_full_name,
+				  "country": country_full_name,
+				  "format": "json"
+				 }
+	else:
+		params = {"state": state_full_name,
+				  # "country": country_full_name,
+				  "format": "json"
+				 }
 	url = "https://nominatim.openstreetmap.org/search?"
 	r = requests.get(url, params = params)
 	text = json.loads(r.text)[0]
 	code = base_code+text["osm_id"]
 	return code
 
-# print(get_state_area_id("Michigan"))
-## To be applied to df
-## IN: row iterator object (c)
-## OUT: new column containing presence and location of bus stop, we will use this to designate a trailhead
-# def getBus(c):
-
-# 	### ISSUE: We don't want to pay for google api, can we use transitland? 
-# 	apikey = 'nice try, thief'
-# 	lat = 42.7313033
-# 	lon = -84.547612
-# 	rad = 1000 # Meters
-
-# 	bus_q = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json?' + 'key=' + apikey + '&location=' + str(lat) + ',' + str(lon) + '&radius=' + str(rad) + '&types=bus_station'
-# 	print(bus_q)
-
-# 	bus_resp = requests.get(bus_q)
-# 	bus_json = json.loads(bus_resp.text)
-# 	print(bus_json)
-# 	if len(bus_json['results'])>0:
-# 	    print('TRANSIT-ACCESSIBLE')
-# 	else:
-# 	    print('NOT ACCESSIBLE')
-# 	return c
-	## for Sam; just implement what you did in jupyter here, then apply it in geoPipe's main method
-
-	
+def pop_region(c, region, country=""):
+	'''
+	Args: 
+		- c iterable representing a row
+		- region
+		- country (optional)
+	Returns:
+		- new column "Region" with the region code for each trail
+	'''
+	code = get_area_code(region, country)
+	c['region_code'] = code
+	return c
 
 ## To be applied to df
 ## IN: row iterator object (c)
@@ -201,17 +193,18 @@ def get_distance(c):
 		pass
 	return c
 
+def get_elevation(c):
+	'''
+	Args: - c iterator object
+	Returns: column with the elevation change of each trail
+	'''
+	dist = c['trail_distance_meters']
+	polyline = c['polyline']
+	thru_hike = c['thru_hike']
+	pass
+	return c
 
 
-
-	# for node in c['nodes']:
-	# 	## for geopy we need to reverse the order of the coords
-	# 	multiLine.append((float(node['lat']), float(node['lon'])))
-	# for line in multiLine:
-	# 	length += line_length(line)
-	
-	# c['trail_distance_meters'] = length
-	# length = 0
 
 
 
@@ -265,95 +258,6 @@ def get_node_distance_meters(node1, node2):
 	return distance((node1['lat'], node1['lon']), (node2['lat'], node2['lon'])).meters
 
 
-def order_ways(trail_obj, way_list, flags=[]):
-	''' Bring order to our lists of ways
-
-	Args: 
-		- trail_obj: list containing our first way, wrapped in a list(first way doesnt matter) 
-			i.e. [[way object dict]]
-		- way_list: list of lists of other ways, not in any order
-
-	Returns: 
-		- trail_obj: each time with 1 new trail appended or prepended, until entire trail_obj has been formed
-		- way_list: 1 item smaller, until empty, when function exits
-	'''
-	# break recurse if there are no remaining unbound ways
-	if len(way_list) == 0:
-		flags_copy = flags
-		flags = []
-		return(list(trail_obj), list(way_list), flags_copy)
-	
-	# use deque from collections lib instead of list for more efficient appending (and prepending)
-	trail_obj = deque(trail_obj)
-	trail_start = trail_obj[0][0]
-	trail_end = trail_obj[-1][-1]
-	repair_distance = 999999 
-
-	for way in way_list:
-		flags = []
-
-		way_start = way[0]
-		way_end = way[-1]
-
-		front_dist = get_node_distance_meters(trail_start, way_end)
-		end_dist = get_node_distance_meters(trail_end, way_start)
-		# if a way must be inverted
-		front_dist_invert = get_node_distance_meters(trail_start, way_start)
-		end_dist_invert = get_node_distance_meters(trail_end, way_end)
-
-		if front_dist < repair_distance:
-			repair_distance = front_dist
-			method = 'prepend'
-			winner_way = way
-		if end_dist < repair_distance:
-			repair_distance = end_dist
-			method = 'append'
-			winner_way = way
-		if front_dist_invert < repair_distance:
-			repair_distance = front_dist_invert
-			method = 'prepend inverted'
-			winner_way = way
-		if end_dist_invert < repair_distance:
-			repair_distance = end_dist_invert
-			method = 'append inverted'
-			winner_way = way
-		# print(str(repair_distance) + " meters")
-		if repair_distance > MAX_DIST_BETWEEN_WAYS:
-			flags.append('repair gap size: '+ str(repair_distance) + " meters")
-
-	if method == 'prepend':
-		trail_obj.appendleft(winner_way)
-		# print(method + " way " + str(len(winner_way)))
-	elif method == 'append':
-		trail_obj.append(winner_way)
-		# print(method + " way " + str(len(winner_way)))
-	elif method == 'prepend inverted':
-		winner_way.reverse()
-		trail_obj.appendleft(winner_way)
-		# print(method + " way " + str(len(winner_way)))
-	elif method == 'append inverted':
-		winner_way.reverse()
-		trail_obj.append(winner_way)
-		# print(method + " way " + str(len(winner_way)))
-	# else:
-	# 	print("huh?")
-
-	way_list.remove(winner_way)
-
-	# for debug
-	# print("\n")
-	# print("running order_ways...")
-	# print("trail obj is size: " + str(len(trail_obj)))
-	# print("way obj is size: " + str(len(way_list)))
-	# print("trail start: " + str(trail_start) + "\ntrail end: " + str(trail_end))
-	# print("repair size: " + str(repair_distance) + " meters")
-
-	return(order_ways(trail_obj, way_list, flags))
-
-
-
-		# print(str(way) + "\n" + str(i) + "\n" + str(repair_distance))
-
 def pop_endpoints(c):
 	'''for each trail, create columns trail_start and trail_end
 	args: c iterator object
@@ -395,35 +299,9 @@ def get_bus(c):
 	return c
 
 
-# with open('trail.json') as f:  
-# 	way_list = json.load(f)
-
-# trail_obj = [way_list[0]]
-# way_list = way_list[1:]
-
-
-# o = order_ways(trail_obj, way_list)
-# print("\n")
-# print(list(o[0]))
-# print(list(o[1]))
-
-# ls_geoJSON = {"type":"LineString", "coordinates": []}
-# for node in list(chain.from_iterable(o[0])):
-# 		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
-# print(ls_geoJSON)
-
-
 
 
 
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
 
-
-'''
-BUGS: 
-- need to fix order of lat, lon for polyline, distance, and geoJSON
-- perhaps make a 2 functions that 1. accepts geoJSON and gets polyline and 2. accepts geoJSON and gets distance
-- distances are ALL fucked up, need to redo this
-
-'''
 
