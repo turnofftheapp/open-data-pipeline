@@ -129,13 +129,13 @@ def injectNodes(c, node_df):
 
 
 def ways_to_trails(way_df, trail_df):
-	print("ways left = " + str(len(way_df)))
+	# print("ways left = " + str(len(way_df)))
 	''' once we have finished creating the trail_df, return'''
 	if len(trail_df) == 0:
 		'''first time around'''
 	if len(way_df) == 0:
 		'''last time, exit'''
-		print("completely done")
+		# print("completely done")
 		return(way_df, trail_df)
 
 	''' pick a way from way_df to create a trail from'''
@@ -152,31 +152,32 @@ def ways_to_trails(way_df, trail_df):
 
 	way_df = way_df[way_df.id != trail_start_way.id]
 	
-	print("repairing ways on trail: " + trail_name)
-	print("starting with way_id " + str(trail_id))
+	# print("repairing ways on trail: " + trail_name)
+	# print("starting with way_id " + str(trail_id))
 
 	method = ''
-	print("entering while loop")
-	if method == 'no close ways':
-		print("not entering while loop")
+	# print("entering while loop")
+	# if method == 'no close ways':
+
+		# print("not entering while loop")
 	while method != 'no close ways':
 		method = ''
 		''' always allow all remaining ways of the same name to be considered '''
 		ways_with_trail_name = way_df[way_df["name"] == trail_name]
-		print('ways_with_trail_name: ' + str(len(ways_with_trail_name)))
+		# print('ways_with_trail_name: ' + str(len(ways_with_trail_name)))
 		if len(ways_with_trail_name) == 0:
 
-			print("no ways found with that name")
+			# print("no ways found with that name")
 			break
 		trail_start = trail_obj[0][0]
 		trail_end = trail_obj[-1][-1]
 
 		repair_dist = MAX_REPAIR_DIST_METERS
-		print("entering for loop")
+		# print("entering for loop")
 
 		for index, way in ways_with_trail_name.iterrows():
 
-			print("looking at way: " + str(way.id))
+			# print("looking at way: " + str(way.id))
 			way_id = way.id
 			way_nodes = [way.nodes]
 
@@ -190,7 +191,7 @@ def ways_to_trails(way_df, trail_df):
 			prepend_dist_inverted = util.get_node_distance_meters(trail_start, way_start)
 			append_dist_inverted = util.get_node_distance_meters(trail_end, way_end)
 
-			print(str(prepend_dist) + " " + str(append_dist) + " " + str(prepend_dist_inverted) + " " + str(append_dist_inverted)) 
+			# print(str(prepend_dist) + " " + str(append_dist) + " " + str(prepend_dist_inverted) + " " + str(append_dist_inverted)) 
 
 			if prepend_dist < repair_dist:
 				repair_dist = prepend_dist
@@ -209,7 +210,7 @@ def ways_to_trails(way_df, trail_df):
 				method = 'append_inverted'
 				closest_way = way
 
-		print("for loop done")
+		# print("for loop done")
 
 		if method == '':
 			method = 'no close ways'
@@ -217,33 +218,33 @@ def ways_to_trails(way_df, trail_df):
 		# if method == "no close ways":
 
 		# 	return(ways_to_trails(way_df, trail_df))
-		print("decided to use method: " + method)
+		# print("decided to use method: " + method)
 		if method == 'prepend':
 			trail_obj.appendleft(closest_way.nodes)
 			trail_tags.appendleft(closest_way.tags)
 			way_df = way_df[way_df.id != closest_way.id]
-			print(method + " way " + str(closest_way.id))
+			# print(method + " way " + str(closest_way.id))
 
 		elif method == 'append':
 			trail_obj.append(closest_way.nodes)
 			trail_tags.append(closest_way.tags)
 			way_df = way_df[way_df.id != closest_way.id]
-			print(method + " way " + str(closest_way.id))
+			# print(method + " way " + str(closest_way.id))
 
 		elif method == 'prepend_inverted':
 			closest_way.nodes.reverse()
 			trail_obj.appendleft(closest_way.nodes)
 			trail_tags.appendleft(closest_way.tags)
 			way_df = way_df[way_df.id != closest_way.id]
-			print(method + " way " + str(closest_way.id))
+			# print(method + " way " + str(closest_way.id))
 
 		elif method == 'append_inverted':
 			closest_way.nodes.reverse()
 			trail_obj.append(closest_way.nodes)
 			trail_tags.append(closest_way.tags)
 			way_df = way_df[way_df.id != closest_way.id]
-			print(method + " way " + str(closest_way.id))
-		print("\n")
+			# print(method + " way " + str(closest_way.id))
+		# print("\n")
 
 	trail_df.append({
 		'id': trail_id,
@@ -256,7 +257,7 @@ def ways_to_trails(way_df, trail_df):
 
 	# print(ways_with_trail_name)
 
-	print("\n")
+	# print("\n")
 
 
 	return(ways_to_trails(way_df, trail_df))
@@ -306,6 +307,7 @@ def main():
 
 	# 5. Form new dataframe of trails, repair the ways within them
 	# trail_df_initial = pd.DataFrame(columns=['id', 'name', 'trail_obj', 'tags'])
+	print("converting ways to trails, this may take a while...")
 	trail_df_initial = []
 	trail_df_list = ways_to_trails(way_df, trail_df_initial)[1]
 	trail_df = pd.DataFrame(trail_df_list)
@@ -323,11 +325,11 @@ def main():
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
 
-	for index,trail in trail_df.iterrows():
-		print(trail['name'])
-		print(trail['polyline'])
-		print(trail['LineString'])
-'''
+	# for index,trail in trail_df.iterrows():
+	# 	print(trail['name'])
+	# 	print(trail['polyline'])
+	# 	print(trail['LineString'])
+
 	# 9. Repair tags
 	print("repairing tags")
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
@@ -343,14 +345,17 @@ def main():
 	print("determining trail shape")
 	trail_df = trail_df.apply(util.is_loop, axis=1)
 
-	# 13. Find bus stops
-	print("finding bus stops")
-	trail_df = trail_df.progress_apply(util.get_bus, axis=1)
+	# 13. Calculate Distance
+
+	# 14. Calculate elevation via totago API call
+
+	# 15. Find bus stops
+	# print("finding bus stops")
+	# trail_df = trail_df.progress_apply(util.get_bus, axis=1)
 
 	print(trail_df.columns)
 	print(trail_df)
 
-'''
 
 
 
