@@ -26,23 +26,21 @@ def get_state_area_id(state_full_name):
 			states[line.split(',')[1].lower()] = int(line.split(',')[2])
 	return states[state]
 
-def get_area_code(state_full_name, country_full_name, base_code = 36000):
+
+
+
+def get_area_code(state_full_name, country_full_name="United States", base_code = 3600000000):
 	params = {"state": state_full_name,
-			  "country": country_full_name,
+			  # "country": country_full_name,
 			  "format": "json"
 			 }
 	url = "https://nominatim.openstreetmap.org/search?"
 	r = requests.get(url, params = params)
 	text = json.loads(r.text)[0]
-	code = int(str(base_code)+str(text["osm_id"]))
+	code = base_code+text["osm_id"]
 	return code
 
-
-
-
-
-
-
+# print(get_state_area_id("Michigan"))
 ## To be applied to df
 ## IN: row iterator object (c)
 ## OUT: new column containing presence and location of bus stop, we will use this to designate a trailhead
@@ -144,9 +142,9 @@ def get_LineString(c):
 	'''
 	ls_geoJSON = {"type":"LineString", "coordinates": []}
 	# make LineString
-	for node in list(chain.from_iterable(c['trail_obj'])):
-		ls_geoJSON['coordinates'].append([node['lon'], node['lat']])
-	c['LineString'] = ls_geoJSON
+	for node in list(chain.from_iterable(c["trail_obj"])):
+		ls_geoJSON["coordinates"].append([node["lon"], node["lat"]])
+	c["LineString"] = ls_geoJSON
 	return c
 
 def get_MultiLineString(c):
@@ -158,10 +156,10 @@ def get_MultiLineString(c):
 	for way in list(c['trail_obj']):
 		way_coords = []
 		for node in way: 
-			way_coords.append([node['lon'], node['lat']])
+			way_coords.append([node["lon"], node["lat"]])
 		mls_geoJSON["coordinates"].append(way_coords)
 
-	c['MultiLineString'] = mls_geoJSON
+	c["MultiLineString"] = mls_geoJSON
 	return c
 
 def repair_tags(c):
@@ -381,6 +379,8 @@ def is_loop(c):
 			#print('Out-and-Back') # Debugging
 	return c
 
+
+# Make sure each list of bus stops is sorted by proximity to trail endpoint.
 def get_bus(c):
 	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r=20000'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']))
 	head_json = json.loads(requests.get(head_query).text)

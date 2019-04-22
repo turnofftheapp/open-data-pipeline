@@ -19,7 +19,8 @@ import sys
 import util
 
 DEBUG_MODE = False
-STATE = "Michigan"
+region = ""
+MAX_REPAIR_DIST_METERS = 150
 # WAYLIMIT = 100
 # requests_cache.install_cache('demo_cache')
 
@@ -30,7 +31,7 @@ pd.set_option('display.width', 1000)
 
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
-def queryOSM(state):
+def queryOSM(region):
 	"""Sends a get request to OSM servers > response
 
 	Args:
@@ -40,13 +41,23 @@ def queryOSM(state):
 		list of elements returned from OSM
 	"""
 
-	area = util.get_state_area_id(state)
+	# area = util.get_state_area_id(state)
 
 	# Query for all of michigan
-	query = '[out:json][timeout:25]; \
-			area({0})->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+
+	area = util.get_area_code(region)
+
+	query = '[out:json][timeout:100][maxsize:800000000]; \
+			area({0})->.searchArea; \
+			(way["highway"~"path|footway|cycleway|bridleway"]\
+			["name"~"trail|Trail|Hiking|hiking"] \
 			(area.searchArea););(._;>;);out;'.format(area)
 
+
+	# query_by_area = '[out:json][timeout:25][maxsize:800000000]; \
+	# {{{geocodeArea:{0}}}}->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# (area.searchArea););(._;>;);out;'.format(region)
+	# print("query= " + str(query_by_area))
 
 		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
 	# query = '[out:json][timeout:25]; \
@@ -116,7 +127,7 @@ def injectNodes(c, node_df):
 	c['nodes'] = node_objs
 	return c
 
-MAX_REPAIR_DIST_METERS = 150
+
 def ways_to_trails(way_df, trail_df):
 	print("ways left = " + str(len(way_df)))
 	''' once we have finished creating the trail_df, return'''
@@ -249,181 +260,11 @@ def ways_to_trails(way_df, trail_df):
 
 
 	return(ways_to_trails(way_df, trail_df))
-	# for trail_name in way_df.name.unique():
-	# 	print("***********************************************")
-	# 	ways_with_trail_name = way_df[way_df["name"] == trail_name]
-	# 	print(way)
-		# trail_obj = trail_obj_response[1]
-		# trail_tags = trail_obj_response[2]
-		# unused_ways = trail_obj_response[0]
-	# 	trail_ways = list(ways_with_trail_name.nodes)
-	# print(way_df.loc[25, :])
-
-	# 	trail_ways = list(ways_with_trail_name.nodes)
-	# 	print(trail_ways)
-# MAX_REPAIR_DIST_METERS = 100
-# def get_trail_obj(waylist, trail_obj, all_trail_tags, trail_tags):
-
-# 	'''RECURSE-END CHECK
-# 	'''
-# 	# print("--------------------------------------------------")
-# 	# print("waylist")
-# 	# print(waylist)
-# 	# print(len(waylist))
-# 	# print("trail_obj")
-# 	# print(trail_obj)
-# 	# print(len(trail_obj))
-# 	# print("tags")
-# 	# print(trail_tags)
-# 	# print("--------------------------------------------------")
-
-# 	if len(waylist) == 0:
-# 		print("exhausted ways")
-# 		return(waylist, trail_obj, all_trail_tags, trail_tags)
-# 	repair_dist = MAX_REPAIR_DIST_METERS
-
-# 	trail_obj = deque(trail_obj)
-# 	trail_start = trail_obj[0][0]
-# 	trail_end = trail_obj[-1][-1]
-
-# 	trail_tags = deque([])
-
-# 	method = ''
-# 	print("run")
-# 	for index, way in enumerate(waylist):
-# 		print("looking for next way")
-# 		way_start = way[0]
-# 		way_end = way[-1]
-
-# 		prepend_dist = util.get_node_distance_meters(trail_start, way_end)
-# 		append_dist = util.get_node_distance_meters(trail_end, way_start)
-
-# 		prepend_dist_inverted = util.get_node_distance_meters(trail_start, way_start)
-# 		append_dist_inverted = util.get_node_distance_meters(trail_end, way_end)
-
-# 		print(str(prepend_dist) + " " + str(append_dist) + " " + str(prepend_dist_inverted) + " " + str(append_dist_inverted) + "\n")
-# 		if prepend_dist < repair_dist:
-# 			repair_dist = prepend_dist
-# 			method = 'prepend'
-# 			closest_way = way
-# 			tags = all_trail_tags[index]
-# 		if append_dist < repair_dist:
-# 			repair_dist = append_dist
-# 			method = 'append'
-# 			closest_way = way
-# 			tags = all_trail_tags[index]
-# 		if prepend_dist_inverted < repair_dist:
-# 			repair_dist = prepend_dist_inverted
-# 			method = 'prepend_inverted'
-# 			closest_way = way
-# 			tags = all_trail_tags[index]
-# 		if append_dist_inverted < repair_dist:
-# 			repair_dist = append_dist_inverted
-# 			method = 'append_inverted'
-# 			closest_way = way
-# 			tags = all_trail_tags[index]
-# 		elif repair_dist == MAX_REPAIR_DIST_METERS:
-# 			method = "no close ways"
-
-# 	print("repair distance is : " + str(repair_dist))
-# 	if method == "no close ways": 
-# 		print(method)
-# 		return(waylist, trail_obj, all_trail_tags, trail_tags)
-
-# 	if method == 'prepend':
-# 		trail_obj.appendleft(closest_way)
-# 		trail_tags.appendleft(tags)
-# 		waylist.remove(closest_way)
-# 		all_trail_tags.remove(tags)
-# 		print(method)
-# 	# print(method + " way " + str(len(closest_way)))
-# 	elif method == 'append':
-# 		trail_obj.append(closest_way)
-# 		trail_tags.append(tags)
-# 		waylist.remove(closest_way)
-# 		all_trail_tags.remove(tags)
-# 		print(method)
-# 		# print(method + " way " + str(len(closest_way)))
-# 	elif method == 'prepend_inverted':
-# 		closest_way.reverse()
-# 		trail_obj.appendleft(closest_way)
-# 		trail_tags.appendleft(tags)
-# 		waylist.remove(closest_way)
-# 		all_trail_tags.remove(tags)
-# 		print(method)
-
-# 		# print(method + " way " + str(len(closest_way)))
-# 	elif method == 'append_inverted':
-# 		closest_way.reverse()
-# 		trail_obj.append(closest_way)
-# 		trail_tags.append(tags)
-# 		waylist.remove(closest_way)
-# 		all_trail_tags.remove(tags)
-# 		print(method)
-
-
-
-# 	return(get_trail_obj(waylist, trail_obj, all_trail_tags, trail_tags))
-
-		
-
-
-			
-
-
-
-
-
-
-# def group_trails(way_df):
-# 	''' creates new dataframe, 1 row for each name contianing lists of tags and ways for each old dataframe row,
-# 	id from first way
-
-# 	'''
-# 	new_trails = []
-# 	trail_df = pd.DataFrame(columns=['id', 'name', 'ways', 'tags'])
-# 	for trail_name in way_df.name.unique():
-# 		ways_with_trail_name = way_df[way_df["name"] == trail_name]
-
-# 		trail_ways = list(ways_with_trail_name.nodes)
-# 		trail_tags = list(ways_with_trail_name.tags)
-# 		trail_id = list(ways_with_trail_name.id)[0]
-
-# 		# print("trail: " + trail_name + "\n" 
-# 		# 	+ "ways: " + str(trail_ways) + "\n"
-# 		# 	+ "tags: " + str(trail_tags) + "\n"
-# 		# 	+ "id: " + str(trail_id) + "\n")
-# 		# print("-----------------------------------------")
-
-# 		new_trail = {
-# 					'id': trail_id, 
-# 					'name': trail_name,
-# 					'ways': trail_ways,
-# 					'tags': trail_tags
-# 					}
-
-# 		new_trails.append(new_trail)
-	
-# 	trail_df = pd.DataFrame(new_trails)
-# 	return trail_df
-
-# def repair_ways(c):
-# 	way_list = c.ways
-# 	trail_obj = [way_list[0]]
-# 	way_list = way_list[1:]
-# 	o = util.order_ways(trail_obj, way_list)
-# 	c['ways_ordered'] = o[0]
-# 	try:	
-# 		c['flags'] = o[2]
-# 	except Exception:
-# 		# no flags!
-# 		pass
-# 	return c
 
 
 def main():
-	sys.setrecursionlimit(2000)
-
+	sys.setrecursionlimit(5000)
+	region = "Ontario"
 
 	""" Executes pipeline logic
 	Process:
@@ -432,7 +273,8 @@ def main():
 			3) For each node in each way, replace the node ID with an dict object of: ID, lat, lon
 			4) Names each trail from tags
 	"""
-	print("Requesting trails for {}".format(STATE))
+	print("Requesting trails for {}".format(region))
+
 
 	# tqdm means "progress" in Arabic, this guy wraps iterables and predicts the time it'll take to run. 
 	# Because we're doing all our transformations with cython functions, we dont need to touch code in the functions
@@ -441,7 +283,7 @@ def main():
 
 	# 1. query OSM and get list of elements
 	print("querying ways from OSM")
-	osmElements = queryOSM(STATE)
+	osmElements = queryOSM(region)
 
 	# 2. split OSM elements into ways and nodes
 	print("splitting elements")
@@ -480,6 +322,7 @@ def main():
 	print("encoding polyline")
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
+
 	for index,trail in trail_df.iterrows():
 		print(trail['name'])
 		print(trail['polyline'])
@@ -513,7 +356,7 @@ def main():
 
 
 
-
+	## Make sure everything is double quotes for geoJSON
 
 	# Final. Insert everything into database
 	# Convert all types to string, makes db insertion easier
