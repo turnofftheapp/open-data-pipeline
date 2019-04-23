@@ -12,8 +12,6 @@ from shapely.geometry import LineString
 from collections import deque
 from itertools import chain
 
-
-MAX_DIST_BETWEEN_WAYS = 100
 # meters
 
 ## IN: country, region
@@ -29,7 +27,7 @@ def get_state_area_id(state_full_name):
 
 
 
-def get_area_code(state_full_name, country_full_name="", base_code = 3600000000):
+def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
 	if country_full_name != "":
 		params = {"state": state_full_name,
 				  "country": country_full_name,
@@ -55,7 +53,7 @@ def pop_region(c, region, country=""):
 	Returns:
 		- new column "Region" with the region code for each trail
 	'''
-	code = get_area_code(region, country)
+	code = get_region_code(region, country)
 	c['region_code'] = code
 	return c
 
@@ -285,20 +283,20 @@ def is_loop(c):
 
 
 # Make sure each list of bus stops is sorted by proximity to trail endpoint.
-def get_bus(c):
-	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r=20000'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']))
+def get_bus(c, bus_radius):
+	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r={}'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']), str(bus_radius))
 	head_json = json.loads(requests.get(head_query).text)
 	if len(head_json['stops']) > 0:
 		c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in head_json['stops'][:2]]
-	tail_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r=800'.format(str(c['trail_end']['lon']),str(c['trail_end']['lat']))
+	tail_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r={}'.format(str(c['trail_end']['lon']),str(c['trail_end']['lat']), str(bus_radius))
 	tail_json = json.loads(requests.get(tail_query).text)
 	if len(tail_json['stops']) > 0:
 		# print("found bus end")
 		if len(tail_json['stops']) > len(head_json['stops']):
 			c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in tail_json['stops'][:2]]
+	if not c['bus_stops']:
+		c['bus_stops'] = None
 	return c
-
-
 
 
 
