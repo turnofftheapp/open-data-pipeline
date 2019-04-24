@@ -44,7 +44,7 @@ def queryOSM(region_code):
 
 
 
-	query = '[out:json][timeout:100][maxsize:800000000]; \
+	query = '[out:json][timeout:1000][maxsize:2073741824]; \
 			area({0})->.searchArea; \
 			(way["highway"~"path|footway|cycleway|bridleway"]\
 			["name"~"trail|Trail|Hiking|hiking"] \
@@ -56,13 +56,14 @@ def queryOSM(region_code):
 	# (area.searchArea););(._;>;);out;'.format(region)
 	# print("query= " + str(query_by_area))
 
-		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
+	# 	Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
 	# query = '[out:json][timeout:25]; \
 	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
 	# 		(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
+	# print(r.text)
 	osmResponse = json.loads(r.text)
 	osmElements = osmResponse['elements']
 	return osmElements
@@ -340,7 +341,7 @@ def main():
 
 	REGION = "California"
 	## specify country in cases where multiple same-named regions exist
-	COUNTRY = "United States"
+	COUNTRY = ""
 
 	""" Executes pipeline logic
 	Process:
@@ -387,9 +388,14 @@ def main():
 	trail_df_list = ways_to_trails(way_df, trail_df_initial, MAX_REPAIR_DIST_METERS)[1]
 	trail_df = pd.DataFrame(trail_df_list)
 
-	# 7. Add column with region code
+	# 7. Add column with region code, Add column with region name
 	# trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
+	print("Adding columns for region code and region name")
 	trail_df['region_code'] = region_code
+	if COUNTRY != "":
+		trail_df['region_name'] = str(REGION) + ", " + str(COUNTRY)
+	else:
+		trail_df['region_name'] = str(REGION)
 
 	# 8. Get geoJSON objects for each trail
 	print("converting to geoJSON LineString")

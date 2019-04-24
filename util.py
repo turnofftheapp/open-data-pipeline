@@ -7,52 +7,20 @@ import json
 import os
 import polyline
 import math
+import sys
 from geopy.distance import distance, geodesic
 from shapely.geometry import LineString
 from collections import deque
 from itertools import chain
 
 import config
-# meters
-
-## IN: country, region
-## OUT: Overpass region code
-def get_state_area_id(state_full_name):
-	states = {}
-	state = state_full_name.lower()
-	with open("us-state-relations.csv") as f:
-		for line in f.readlines()[1:]:
-			states[line.split(',')[1].lower()] = int(line.split(',')[2])
-	return states[state]
-
-
-
-
-# def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
-# 	if country_full_name != "":
-# 		params = {"state": state_full_name,
-# 				  "country": country_full_name,
-# 				  "format": "json"
-# 				 }
-# 	else:
-# 		params = {"state": state_full_name,
-# 				  # "country": country_full_name,
-# 				  "format": "json"
-# 				 }
-# 	url = "https://nominatim.openstreetmap.org/search?"
-# 	try:
-# 		r = requests.get(url, params = params)
-# 		text = json.loads(r.text)[0]
-# 		code = base_code+text["osm_id"]
-# 		return code
-# 	except Exception as e:
-# 		print(e)
-# 		print("\n\n\n\nNominatim API limit reached, wait 15 minutes and try again\n\n\n\n")
-# 	return None
 
 # This one uses MapQuests API
-
 def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
+	''' Queries MapQuest's Nominatum API to find codes for region polygons
+	Args: state_full_name, country_full_name (optional), base_code, use default value
+	Returns: Area ID for given region
+	'''
 
 	if country_full_name != "":
 		params = {"state": state_full_name,
@@ -67,42 +35,30 @@ def get_region_code(state_full_name, country_full_name="", base_code = 360000000
 
 	params['key'] = config.mapQuestKey
 	url = "http://open.mapquestapi.com/nominatim/v1/search.php"
-	# try:
-	r = requests.get(url, params = params)
-	text = json.loads(r.text)[0]
-	code = base_code+int(text["osm_id"])
+	try:
+		r = requests.get(url, params = params)
+		text = json.loads(r.text)[0]
+		code = base_code+int(text["osm_id"])
+	except Exception as e:
+		print("a region by that name could not be found, error below: ")
+		return e
 	return code
-	# except Exception as e:
-	# 	print(e)
-	# 	print("\n\n\n\nNominatim API limit reached, wait 15 minutes and try again\n\n\n\n")
 
-
-# def pop_region(c, region, country=""):
-# 	'''
-# 	Args: 
-# 		- c iterable representing a row
-# 		- region
-# 		- country (optional)
-# 	Returns:
-# 		- new column "Region" with the region code for each trail
-# 	'''
-# 	code = get_region_code(region, country)
-# 	c['region_code'] = code
-# 	return c
 
 ## To be applied to df
 ## IN: row iterator object (c)
 ## OUT: fixes bad data
-def validate_trails(c):
-	c['issues'] = []
-	## make sure trails that don't have tags get an empty list
-	if type(c['tags']) not in [list, dict, str]:
-		c['tags'] = []
-		c['issues'].append("no tags")
-	## make sure nodes and ways arent empty (caused by trails outside of specified geoarea)
-	if c.ways == [] or c.nodes == []:
-		c['issues'].append("out of bounds")
-	return c
+# this is no longer needed as we have replaced the functionality that resulted in bad data (relations)
+# def validate_trails(c):
+# 	c['issues'] = []
+# 	## make sure trails that don't have tags get an empty list
+# 	if type(c['tags']) not in [list, dict, str]:
+# 		c['tags'] = []
+# 		c['issues'].append("no tags")
+# 	## make sure nodes and ways arent empty (caused by trails outside of specified geoarea)
+# 	if c.ways == [] or c.nodes == []:
+# 		c['issues'].append("out of bounds")
+# 	return c
 
 
 def get_name(c):
@@ -121,38 +77,13 @@ def get_name(c):
 	c['name'] = str(name)
 	return c
 
-## To be applied to df
-## IN: row iterator object (c)
-## OUT: new col "shape" with either "loop" or "out and back" as values
-def get_shape(c):
-	shape_errors = []
-	c['shape'] = None
-	try:
-		if "out of bounds" not in c['issues']:
-			fnode = c['nodes'][0]['id']
-			lnode = c['nodes'][-1]['id']
-			if fnode == lnode:
-				c['shape'] = "loop"
-			else:
-				c['shape'] = "straight"
-	except Exception as e:
-		print("get_shape error ", e, " on trail id: ", c.id)
-	return c
-
-## To be applied to df
-## IN: row iterator object (c)
-## OUT: values in end_lat and end_lon for loop trails, N/A for those without.
-def get_trail_end(c):
-	c['end_lat'] = None
-	c['end_lon'] = None
-	if c['shape'] == "straight":
-		c['end_lat'] = float(c['nodes'][-1]['lat'])
-		c['end_lon'] = float(c['nodes'][-1]['lon'])
-	return c
 
 ## FIX: take from geoJSON ***
 def get_polyline(c, precision=5):
-	# list(chain.from_iterable(
+	''' uses polyline library to encode trail_obj (LineString) into polyline format
+	Args: c Cython iterator object to represent rows, precision value (default 5)
+	Returns: New column with polyline 
+	'''
 	nodes = []
 	for node in list(chain.from_iterable(c['trail_obj'])):
 		nodes.append((float(node['lat']), float(node['lon'])))
@@ -160,8 +91,9 @@ def get_polyline(c, precision=5):
 	return c
 
 def get_LineString(c):
-	'''
+	''' flattens trail object and injects into empty geoJSON LineString object
 	Args: c iterable
+	Returns: column LineString
 	'''
 	ls_geoJSON = {"type":"LineString", "coordinates": []}
 	# make LineString
@@ -171,8 +103,9 @@ def get_LineString(c):
 	return c
 
 def get_MultiLineString(c):
-	'''
+	''' creates un-flattened version of LineString
 	Args: c iterable
+	Returns: column MultiLineString
 	'''
 	mls_geoJSON = {"type":"MultiLineString", "coordinates": []}
 	# make MultiLineString
@@ -186,9 +119,9 @@ def get_MultiLineString(c):
 	return c
 
 def repair_tags(c):
-	'''
+	''' combines tags from each way per trail 
 	Args: c iterable
-	Returns: c with 'tags' column with duplicates removed
+	Returns: 'tags' column with duplicates removed
 	'''
 	tag_obj = {}
 	for tag in c['tags']:
@@ -204,6 +137,10 @@ def repair_tags(c):
 
 ## currently, when we generate our polyline the ways are out of order. Fix this and the distances will be ok
 def get_distance(c):
+	''' calculates + sums distance between each node in a LineString
+	Args: c iterator object
+	Returns: column with distance (in meters)
+	'''
 	try:
 	
 		length = 0
@@ -223,35 +160,6 @@ def get_distance(c):
 		print("distance calculation encountered error: " + str(e) + "on trail: " + str(c))
 		pass
 	return c
-
-def get_elevation(c):
-	'''
-	Args: - c iterator object
-	Returns: column with the elevation change of each trail
-	'''
-	dist = c['trail_distance_meters']
-	polyline = c['polyline']
-	thru_hike = c['thru_hike']
-	pass
-	return c
-
-
-
-
-
-## borrowed from stackexchange
-def line_length(line):
-	"""Length of a line in meters, given in geographic coordinates
-
-	Args:
-		line: a shapely LineString object with WGS-84 coordinates
-
-	Returns:
-		Length of line in meters
-	"""
-	# b, a because the distance calculation requires latitude, longitude or y, x in cartesian terms
-	return sum(distance(a, b).meters for (a, b) in pairs(line))
-
 
 def pairs(lineString):
 	"""Iterate over a list in overlapping pairs without wrap-around.
@@ -278,14 +186,11 @@ def pairs(lineString):
 		# print(prev, item)
 		prev = item
 
-
-def get_node_distance(node1, node2): 
-	[x1, y1] = node1['lat'], node1['lon']
-	[x2, y2] = node2['lat'], node2['lon']
-	dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)  
-	return dist 
-
 def get_node_distance_meters(node1, node2):
+	''' uses geopy's distance library to calculate the distance in meters between any two coordinate pairs
+	Args: node1, node2
+	Returns: distance in meters
+	'''
 	return distance((node1['lat'], node1['lon']), (node2['lat'], node2['lon'])).meters
 
 
@@ -302,6 +207,10 @@ def pop_endpoints(c):
 	return c
 
 def is_loop(c, stretch_distance):
+	''' Compares trail end and trail start, if within stretch_distance, trail is considered a loop/ thru_hike
+	Args: c iterator object, stretch_distance int
+	Returns: column 'thru_hike'
+	'''
 	if c['trail_start']['lat'] == c['trail_end']['lat'] and c['trail_start']['lon'] == c['trail_end']['lon']:
 		c['thru_hike'] = True
 	else:
@@ -313,8 +222,11 @@ def is_loop(c, stretch_distance):
 			#print('Out-and-Back') # Debugging
 	return c
 
-# Make sure each list of bus stops is sorted by proximity to trail endpoint.
 def get_bus(c, bus_radius):
+	''' queries transitland API for nearest bus stops to beginning or end of trail
+	Args: c iterator object, bus_radius (radius around a node to search for bus stops)
+	Returns: column 'bus_stops' containing a list of bus stops 
+	'''
 	c['bus_stops'] = []
 
 	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r={}'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']), str(bus_radius))
@@ -329,8 +241,6 @@ def get_bus(c, bus_radius):
 			c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in tail_json['stops'][:2]]
 
 	return c
-
-
 
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
 
