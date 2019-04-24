@@ -320,10 +320,8 @@ def to_db(trail_df, region_code, tablename, schema=""):
 	results = [r for r in conn.execute(statement)]
 	if len(results) == 0:
 		existing_trails = False
-		print("trails don't exist")
 	else:
 		existing_trails = True
-		print("trails already exist")
 
 	print("trails exist = " + str(existing_trails))
 
@@ -375,11 +373,11 @@ def main():
 	region_code = util.get_region_code(REGION, COUNTRY)
 
 	# 2. query OSM and get list of elements
-	print("querying ways from OSM")
+	print("\nquerying ways from OSM")
 	osmElements = queryOSM(region_code)
 
 	# 3. split OSM elements into ways and nodes
-	print("splitting elements")
+	print("\nsplitting elements")
 	ways_and_nodes = splitElements(osmElements)
 	ways = ways_and_nodes[0]
 	nodes = ways_and_nodes[1]
@@ -388,22 +386,22 @@ def main():
 	node_df = pd.DataFrame(nodes)
 
 	# 4. get all nodes lat and lon for each way
-	print("injecting node coordinates into ways")
+	print("\ninjecting node coordinates into ways")
 	way_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
 
 	# 5. name each trail
-	print("naming trails")
+	print("\nnaming trails")
 	way_df = way_df.progress_apply(util.get_name, axis=1)
 
 	# 6. Form new dataframe of trails, repair the ways within them
-	print("converting ways to trails, this may take a while...")
+	print("\nconverting ways to trails, this may take a while...")
 	trail_df_initial = []
 	trail_df_list = ways_to_trails(way_df, trail_df_initial, MAX_REPAIR_DIST_METERS)[1]
 	trail_df = pd.DataFrame(trail_df_list)
 
 	# 7. Add column with region code, Add column with region name
 	# trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
-	print("Adding columns for region code and region name")
+	print("\nAdding columns for region code and region name")
 	trail_df['region_code'] = region_code
 	if COUNTRY != "":
 		trail_df['region_name'] = str(REGION) + ", " + str(COUNTRY)
@@ -411,35 +409,35 @@ def main():
 		trail_df['region_name'] = str(REGION)
 
 	# 8. Get geoJSON objects for each trail
-	print("converting to geoJSON LineString")
+	print("\nconverting to geoJSON LineString")
 	trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
-	print("converting to geoJSON MultiLineString")
+	print("\nconverting to geoJSON MultiLineString")
 	trail_df = trail_df.apply(util.get_LineString, axis=1)
 
 
 	# 9. Encode polyline
-	print("encoding polyline")
+	print("\nencoding polyline")
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
 	# 10. Repair tags
-	print("repairing tags")
+	print("\nrepairing tags")
 	trail_df = trail_df.apply(util.repair_tags, axis=1)
 
 	# 11. Get trail endpoints
-	print("getting trail endpoints")
+	print("\ngetting trail endpoints")
 	trail_df = trail_df.apply(util.pop_endpoints, axis=1)
 
 	# 12. Calculate distance of trail (using LineString)
-	print("calculating trail distances")
+	print("\ncalculating trail distances")
 	trail_df = trail_df.progress_apply(util.get_distance, axis=1)
 
 	# 13. Determine trail shape
-	print("determining trail shape")
+	print("\ndetermining trail shape")
 	trail_df = trail_df.apply(util.is_loop, args=(LOOP_COMPLETION_THRESHOLD_METERS, ), axis=1)
 
 
 	# 14. Find bus stops
-	print("finding bus stops")
+	print("\nfinding bus stops")
 	trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
 
 	# print(trail_df.columns)
