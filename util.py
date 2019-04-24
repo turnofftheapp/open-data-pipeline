@@ -12,6 +12,7 @@ from shapely.geometry import LineString
 from collections import deque
 from itertools import chain
 
+import config
 # meters
 
 ## IN: country, region
@@ -27,7 +28,32 @@ def get_state_area_id(state_full_name):
 
 
 
+# def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
+# 	if country_full_name != "":
+# 		params = {"state": state_full_name,
+# 				  "country": country_full_name,
+# 				  "format": "json"
+# 				 }
+# 	else:
+# 		params = {"state": state_full_name,
+# 				  # "country": country_full_name,
+# 				  "format": "json"
+# 				 }
+# 	url = "https://nominatim.openstreetmap.org/search?"
+# 	try:
+# 		r = requests.get(url, params = params)
+# 		text = json.loads(r.text)[0]
+# 		code = base_code+text["osm_id"]
+# 		return code
+# 	except Exception as e:
+# 		print(e)
+# 		print("\n\n\n\nNominatim API limit reached, wait 15 minutes and try again\n\n\n\n")
+# 	return None
+
+# This one uses MapQuests API
+
 def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
+
 	if country_full_name != "":
 		params = {"state": state_full_name,
 				  "country": country_full_name,
@@ -38,24 +64,31 @@ def get_region_code(state_full_name, country_full_name="", base_code = 360000000
 				  # "country": country_full_name,
 				  "format": "json"
 				 }
-	url = "https://nominatim.openstreetmap.org/search?"
+
+	params['key'] = config.mapQuestKey
+	url = "http://open.mapquestapi.com/nominatim/v1/search.php"
+	# try:
 	r = requests.get(url, params = params)
 	text = json.loads(r.text)[0]
-	code = base_code+text["osm_id"]
+	code = base_code+int(text["osm_id"])
 	return code
+	# except Exception as e:
+	# 	print(e)
+	# 	print("\n\n\n\nNominatim API limit reached, wait 15 minutes and try again\n\n\n\n")
 
-def pop_region(c, region, country=""):
-	'''
-	Args: 
-		- c iterable representing a row
-		- region
-		- country (optional)
-	Returns:
-		- new column "Region" with the region code for each trail
-	'''
-	code = get_region_code(region, country)
-	c['region_code'] = code
-	return c
+
+# def pop_region(c, region, country=""):
+# 	'''
+# 	Args: 
+# 		- c iterable representing a row
+# 		- region
+# 		- country (optional)
+# 	Returns:
+# 		- new column "Region" with the region code for each trail
+# 	'''
+# 	code = get_region_code(region, country)
+# 	c['region_code'] = code
+# 	return c
 
 ## To be applied to df
 ## IN: row iterator object (c)
@@ -282,6 +315,8 @@ def is_loop(c, stretch_distance):
 
 # Make sure each list of bus stops is sorted by proximity to trail endpoint.
 def get_bus(c, bus_radius):
+	c['bus_stops'] = []
+
 	head_query = 'http://transit.land/api/v1/stops?lon={}&lat={}&r={}'.format(str(c['trail_start']['lon']),str(c['trail_start']['lat']), str(bus_radius))
 	head_json = json.loads(requests.get(head_query).text)
 	if len(head_json['stops']) > 0:
@@ -292,8 +327,7 @@ def get_bus(c, bus_radius):
 		# print("found bus end")
 		if len(tail_json['stops']) > len(head_json['stops']):
 			c['bus_stops'] = [(t['geometry']['coordinates'][0],t['geometry']['coordinates'][1]) for t in tail_json['stops'][:2]]
-	if not c['bus_stops']:
-		c['bus_stops'] = None
+
 	return c
 
 
