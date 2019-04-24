@@ -268,19 +268,17 @@ def pop_endpoints(c):
 	c['trail_end'] = {'lat':trail_end['lat'], 'lon':trail_end['lon']}
 	return c
 
-def is_loop(c):
+def is_loop(c, stretch_distance):
 	if c['trail_start']['lat'] == c['trail_end']['lat'] and c['trail_start']['lon'] == c['trail_end']['lon']:
 		c['thru_hike'] = True
-		#print('Loop') # Debugging
 	else:
-		if distance((c['trail_start']['lat'], c['trail_start']['lon']), (c['trail_end']['lat'], c['trail_end']['lon'])).meters < 20:
+		if distance((c['trail_start']['lat'], c['trail_start']['lon']), (c['trail_end']['lat'], c['trail_end']['lon'])).meters < stretch_distance:
 			c['thru_hike'] = True
 			#print('Incomplete Loop') # Debugging
 		else:
 			c['thru_hike'] = False
 			#print('Out-and-Back') # Debugging
 	return c
-
 
 # Make sure each list of bus stops is sorted by proximity to trail endpoint.
 def get_bus(c, bus_radius):
@@ -301,5 +299,6 @@ def get_bus(c, bus_radius):
 
 
 	# DB Schema: https://docs.google.com/document/d/1D_bjp7f0lv7hRCPbL2rCDwIlX152Pmr9M81Dwwt-iQk/edit
+
 
 
