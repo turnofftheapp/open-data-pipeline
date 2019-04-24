@@ -44,11 +44,11 @@ def queryOSM(region_code):
 
 
 
-	# query = '[out:json][timeout:100][maxsize:800000000]; \
-	# 		area({0})->.searchArea; \
-	# 		(way["highway"~"path|footway|cycleway|bridleway"]\
-	# 		["name"~"trail|Trail|Hiking|hiking"] \
-	# 		(area.searchArea););(._;>;);out;'.format(region_code)
+	query = '[out:json][timeout:100][maxsize:800000000]; \
+			area({0})->.searchArea; \
+			(way["highway"~"path|footway|cycleway|bridleway"]\
+			["name"~"trail|Trail|Hiking|hiking"] \
+			(area.searchArea););(._;>;);out;'.format(region_code)
 
 
 	# query_by_area = '[out:json][timeout:25][maxsize:800000000]; \
@@ -57,9 +57,9 @@ def queryOSM(region_code):
 	# print("query= " + str(query_by_area))
 
 		# Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
-	query = '[out:json][timeout:25]; \
-			(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-			(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
+	# query = '[out:json][timeout:25]; \
+	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
+	# 		(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -324,8 +324,8 @@ def to_db(trail_df, region_code, tablename, schema=""):
 	trail_df.to_sql(name=tablename, con=conn, if_exists='append', index=False)
 	print("new trails added for region: " + str(region_code))
 
-	data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
-	print(data)
+	# data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
+	# print(data)
 
 	return 1
 
@@ -336,10 +336,11 @@ def main():
 
 	MAX_REPAIR_DIST_METERS = 150
 	BUS_RADIUS_METERS = 800
+	LOOP_COMPLETION_THRESHOLD_METERS = 20
 
-	REGION = "Michigan"
+	REGION = "California"
 	## specify country in cases where multiple same-named regions exist
-	COUNTRY = ""
+	COUNTRY = "United States"
 
 	""" Executes pipeline logic
 	Process:
@@ -387,8 +388,8 @@ def main():
 	trail_df = pd.DataFrame(trail_df_list)
 
 	# 7. Add column with region code
-	trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
-
+	# trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
+	trail_df['region_code'] = region_code
 
 	# 8. Get geoJSON objects for each trail
 	print("converting to geoJSON LineString")
@@ -415,15 +416,15 @@ def main():
 
 	# 13. Determine trail shape
 	print("determining trail shape")
-	trail_df = trail_df.apply(util.is_loop, axis=1)
+	trail_df = trail_df.apply(util.is_loop, args=(LOOP_COMPLETION_THRESHOLD_METERS, ), axis=1)
 
 
 	# 14. Find bus stops
 	print("finding bus stops")
 	trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
 
-	print(trail_df.columns)
-	print(trail_df)
+	# print(trail_df.columns)
+	# print(trail_df)
 
 	# 15. Insert trails into database
 	tablename = 'destination_michigan'
@@ -431,7 +432,7 @@ def main():
 
 	to_db(trail_df, region_code, tablename, schema)
 
-
+	print("found " + str(len(trail_df)) + " trails in " + REGION)
 
 
 	## Make sure everything is double quotes for geoJSON
