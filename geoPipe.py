@@ -63,10 +63,13 @@ def queryOSM(region_code):
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
-	# print(r.text)
-	osmResponse = json.loads(r.text)
-	osmElements = osmResponse['elements']
-	return osmElements
+	try:
+		osmResponse = json.loads(r.text)
+		osmElements = osmResponse['elements']
+		return osmElements
+	except Exception as e:
+		# print("OSM API limit exceeded, please try again later")
+		return r.text
 
 def splitElements(osmElements):
 	"""Splits returned OSM elements into list of ways and list of nodes
@@ -126,44 +129,45 @@ def injectNodes(c, node_df):
 	return c
 
 
-def ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS):
+def ways_to_trails(way_df, trail_list, MAX_REPAIR_DIST_METERS):
 	# print("ways left = " + str(len(way_df)))
-	''' once we have finished creating the trail_df, return'''
-	if len(trail_df) == 0:
-		pass
-		'''first time around'''
+	''' once we have finished creating the trail_list, return'''
+
+	''' if we have exhausted all ways in way_df, we are done, return way_df and trail_list ''' 
 	if len(way_df) == 0:
 		'''last time, exit'''
 		# print("completely done")
-		return(way_df, trail_df)
+		return(way_df, trail_list)
 
 	''' pick a way from way_df to create a trail from'''
 	trail_start_way = way_df.iloc[0]
 	trail_name = trail_start_way['name']
 	trail_id = trail_start_way.id
-	''' get all the other ways with it's same name'''
-	ways_with_trail_name = way_df[way_df["name"] == trail_name]
 
+	'''a deque object is a list that can be prepended to'''
 	trail_obj = deque([trail_start_way.nodes])
 	trail_tags = deque([trail_start_way.tags])
 
 
-
+	''' remove start way from way_df ''' 
 	way_df = way_df[way_df.id != trail_start_way.id]
 	
 	# print("repairing ways on trail: " + trail_name)
 	# print("starting with way_id " + str(trail_id))
 
+	''' set method to empty so while loop runs''' 
 	method = ''
 	# print("entering while loop")
 	# if method == 'no close ways':
 
-		# print("not entering while loop")
+		# print("now entering while loop")
 	while method != 'no close ways':
 		method = ''
 		''' always allow all remaining ways of the same name to be considered '''
 		ways_with_trail_name = way_df[way_df["name"] == trail_name]
 		# print('ways_with_trail_name: ' + str(len(ways_with_trail_name)))
+
+
 		if len(ways_with_trail_name) == 0:
 
 			# print("no ways found with that name")
@@ -174,6 +178,8 @@ def ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS):
 		repair_dist = MAX_REPAIR_DIST_METERS
 		# print("entering for loop")
 
+		''' iterate through list of ways sharing a trail name, at the end of the loop you should have:
+		    a repair method, a closest_way, and a repair_distance for the nearest way in the list'''
 		for index, way in ways_with_trail_name.iterrows():
 
 			# print("looking at way: " + str(way.id))
@@ -211,18 +217,24 @@ def ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS):
 
 		# print("for loop done")
 
+		# Using the method and closest_way determined in the loop thru ways_with_trail_name, perform the given 
+		# append/prepend on the trail_obj, then remove the way appended/prepended from the way_df
+		# if no close ways were found in the for loop, the method will remain blank. In this case, set the method to
+		# 'no close ways' so that the while loop will exit
 		if method == '':
 			method = 'no close ways'
 
 		if method == 'prepend':
 			trail_obj.appendleft(closest_way.nodes)
 			trail_tags.appendleft(closest_way.tags)
+			'''remove used way from way_df'''
 			way_df = way_df[way_df.id != closest_way.id]
 			# print(method + " way " + str(closest_way.id))
 
 		elif method == 'append':
 			trail_obj.append(closest_way.nodes)
 			trail_tags.append(closest_way.tags)
+			'''remove used way from way_df'''
 			way_df = way_df[way_df.id != closest_way.id]
 			# print(method + " way " + str(closest_way.id))
 
@@ -230,6 +242,7 @@ def ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS):
 			closest_way.nodes.reverse()
 			trail_obj.appendleft(closest_way.nodes)
 			trail_tags.appendleft(closest_way.tags)
+			'''remove used way from way_df'''
 			way_df = way_df[way_df.id != closest_way.id]
 			# print(method + " way " + str(closest_way.id))
 
@@ -237,25 +250,21 @@ def ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS):
 			closest_way.nodes.reverse()
 			trail_obj.append(closest_way.nodes)
 			trail_tags.append(closest_way.tags)
+			'''remove used way from way_df'''
 			way_df = way_df[way_df.id != closest_way.id]
 			# print(method + " way " + str(closest_way.id))
 		# print("\n")
 
-	trail_df.append({
+	# once the while loop has exited (no close ways have been found for the trail selected in the beginning), 
+	# append the trail_obj to a list of trails
+	trail_list.append({
 		'id': trail_id,
 		'name': trail_name,
 		'trail_obj': trail_obj,
 		'tags': trail_tags})
-	# print(trail_df)
 
-
-
-	# print(ways_with_trail_name)
-
-	# print("\n")
-
-
-	return(ways_to_trails(way_df, trail_df, MAX_REPAIR_DIST_METERS))
+	# finally, if way_df still contains items, call ways_to_trails again with the new way_df and trail_list
+	return(ways_to_trails(way_df, trail_list, MAX_REPAIR_DIST_METERS))
 
 
 
@@ -343,7 +352,7 @@ def main():
 	BUS_RADIUS_METERS = 800
 	LOOP_COMPLETION_THRESHOLD_METERS = 20
 
-	REGION = "California"
+	REGION = "Ontario"
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
 
@@ -445,22 +454,11 @@ def main():
 	print("found " + str(len(trail_df)) + " trails in " + REGION)
 
 
-	## Make sure everything is double quotes for geoJSON
-
-	# Final. Insert everything into database
-	# Convert all types to string, makes db insertion easier
-
-
-
-	
-	# trail_df.to_sql(name=tablename, con=con, if_exists = 'replace', index=False)
-	# data = pd.read_sql('SELECT * FROM {}'.format(tablename), engine)
-	# print(data)
-
 
 
 
 
 if __name__ == '__main__':
+
 	main()
 

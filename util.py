@@ -47,8 +47,7 @@ def get_region_code(state_full_name, country_full_name="", base_code = 360000000
 		print("a region by that name could not be found, error below: ")
 		return e
 	return code
-
-
+	
 ## To be applied to df
 ## IN: row iterator object (c)
 ## OUT: fixes bad data
