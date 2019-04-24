@@ -1,0 +1,5 @@
+dbname = ""
+username = ""
+password = ""
+host = ""
+mapQuestKey = ""

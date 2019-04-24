@@ -277,6 +277,10 @@ def to_db(trail_df, region_code, tablename, schema=""):
 		schema = schema + "."
 
 	# Initialize the engine
+	try: 
+		username = config.username
+	except Exception as e:
+		print("populate config.py with the required database info")
 	engine = create_engine('postgresql://'+ config.username +':'+config.password+'@'+ \
 			config.host+':'+'5432'\
 			+'/'+'totago',echo=False)
@@ -333,7 +337,7 @@ def to_db(trail_df, region_code, tablename, schema=""):
 
 def main():
 
-	sys.setrecursionlimit(5000)
+	sys.setrecursionlimit(10000)
 
 	MAX_REPAIR_DIST_METERS = 150
 	BUS_RADIUS_METERS = 800

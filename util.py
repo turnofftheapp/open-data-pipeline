@@ -33,7 +33,11 @@ def get_region_code(state_full_name, country_full_name="", base_code = 360000000
 				  "format": "json"
 				 }
 
-	params['key'] = config.mapQuestKey
+	try: 
+		params['key'] = config.mapQuestKey
+	except Exception:
+		print("missing MapQuest API key, retreive key from mapquestapi.com and populate in config.py")
+		sys.exit()
 	url = "http://open.mapquestapi.com/nominatim/v1/search.php"
 	try:
 		r = requests.get(url, params = params)

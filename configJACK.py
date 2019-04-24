@@ -1,0 +1,5 @@
+dbname = "totago"
+username = "awsuser"
+password = "7o04JsWRXuZT"
+host = "totago-staging.cjtqfbi6mrth.us-west-2.rds.amazonaws.com"
+mapQuestKey = "FUWG7ABxhNdAfFuMtl5HsSS3DxdmoZwW"
