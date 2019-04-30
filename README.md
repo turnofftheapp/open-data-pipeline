@@ -11,17 +11,23 @@ How To Run: (from /open-data-pipeline/)
 	hint: look for column headers and notice
 	how output is split to fit the terminal
 
+# Issue tracker
+
+https://github.com/turnofftheapp/open-data-pipeline/projects/1
+
 # Documentation
 
-OSM Query:
-‘[out:json][timeout:1000][maxsize:2073741824]; \
+### OSM Query:
+´´´
+[out:json][timeout:1000][maxsize:2073741824]; \
 area({0})->.searchArea; \
 (way["highway"~"path|footway|cycleway|bridleway"]\
 ["name"~"trail|Trail|Hiking|hiking"] \
 (area.searchArea););(._;>;);out;'.format(region_code)
+´´´
 
+**Breakdown of what each part of this query does:**
 
-Breakdown of what each part of this query does:
 * [out:json]
    * Specifies the output is in JSON
 * [timeout:1000][maxsize:2073741824];
@@ -50,40 +56,43 @@ Breakdown of what each part of this query does:
 * NOTE: The slashes are just syntax for allowing line breaks, they don’t actually do anything to the query. The single quotation marks (‘) are because the query string is having .format(region_code) applied to it; to run this in Overpass, you would need to remove the .format(region_code) part, the quotation marks, and the slashes.
 
 
-Global Parameters:
+### Global Parameters
+
 * MAX_REPAIR_DIST_METERS = 150: distance in meters within which a way may be joined to a trail_obj
 * BUS_RADIUS_METERS = 800: radius within which to search for bus stops
 * LOOP_COMPLETION_THRESHOLD_METERS = 20: distance deemed close-enough for a trail to be considered a loop
 * REGION = "California" : region to query for
 * COUNTRY = "" : country to query for, use if multiple regions exist in different countries, can/should be left as an empty string if otherwise
 
+### Functions
 
-geoPipe.py: Functions/runtime
+**geoPipe.py:** Functions/runtime
+
 * main(): pipeline logic exists here, following steps below:
    * Setup: 
-* sys.setrecursionlimit(5000): sets max recursion depth to 5000, needed for ways_to_trails()
-* MAX_REPAIR_DIST_METERS: max distance between two ways for them to be repaired into the same trail
-* BUS_RADIUS_METERS: radius within which a bus stop may be located
-* REGION = “”: specify region here, i.e. “Michigan” or “Ontario”
-* COUNTRY = “”: specify country here, if multiple regions exist by same name
-* tqdm.pandas(): initializes tqdm package, allows progress_apply to display a progress bar when applying a function to a dataframe
+	* sys.setrecursionlimit(5000): sets max recursion depth to 5000, needed for ways_to_trails()
+	* MAX_REPAIR_DIST_METERS: max distance between two ways for them to be repaired into the same trail
+	* BUS_RADIUS_METERS: radius within which a bus stop may be located
+	* REGION = “”: specify region here, i.e. “Michigan” or “Ontario”
+	* COUNTRY = “”: specify country here, if multiple regions exist by same name
+	* tqdm.pandas(): initializes tqdm package, allows progress_apply to display a progress bar when applying a function to a dataframe
 
+	1. Get overpass region_code using util.get_region_code
+	2. Query overpass for trail ways in given region
+	3. Split elements returned by query into dataframe of ways and dataframe of nodes
+	4. For each way: inject its nodes into column ‘nodes’ (replacing old ‘nodes’ column)
+	5. For each way: evaluate name and create new column
+	6. Call ways_to_trails() to combine all closeby way objects into trail relations, also combining their tags. Result is new dataframe trail_df
+	7. Add column with region code to trail_df, Add column with region name to trail_df
+	8. Get geoJSON LineString and MultiLineString objects for each trail in trail_df
+	9. Determines encoded polyline for each trail in trail_df, adds to column ‘polylines’
+	10. Flattens nested tag objects, combining values with the same key for each trail
+	11. Creates new columns: trail_start and trail_end containing start and end coordinates for each trail
+	12. Calculate distance along each trail LineString object, adds to column ‘distances’
+	13. Determine trail shape (if trail_start == trail_end; thru_hike = True)
+	14. Query transit land for each trail, finding bus stops within a defined radius
+	15. Insert trails into database using to_db()
 
-1. Get overpass region_code using util.get_region_code
-2. Query overpass for trail ways in given region
-3. Split elements returned by query into dataframe of ways and dataframe of nodes
-4. For each way: inject its nodes into column ‘nodes’ (replacing old ‘nodes’ column)
-5. For each way: evaluate name and create new column
-6. Call ways_to_trails() to combine all closeby way objects into trail relations, also combining their tags. Result is new dataframe trail_df
-7. Add column with region code to trail_df, Add column with region name to trail_df
-8. Get geoJSON LineString and MultiLineString objects for each trail in trail_df
-9. Determines encoded polyline for each trail in trail_df, adds to column ‘polylines’
-10. Flattens nested tag objects, combining values with the same key for each trail
-11. Creates new columns: trail_start and trail_end containing start and end coordinates for each trail
-12. Calculate distance along each trail LineString object, adds to column ‘distances’
-13. Determine trail shape (if trail_start == trail_end; thru_hike = True)
-14. Query transit land for each trail, finding bus stops within a defined radius
-15. Insert trails into database using to_db()
 * queryOSM(region_code): queries OSM for trail ways within a given region. If the OSM server times out/ display error message and exit program. 
 * splitElements(osmElements): splits osm elements by type. Returns tuple of lists (ways, nodes)
 * injectNodes(c, node_df): Apply to dataframe: for each row (represented by c (Cython iterator object)), replace ‘nodes’ column data with list of nodes w/coordinates for each way
@@ -98,7 +107,9 @@ geoPipe.py: Functions/runtime
    * Evaluates existence of table. If exists and empty, drop. If exists, continue. If doesn't exist: create with trail_df
    * Evaluates existence of trails in db for given region. If they exist, delete them, if not, continue
    * Finally, appends new trails
-util.py: Functions
+
+**util.py:** Functions
+
 * get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
         Queries MapQuest’s Nominatum API to obtain an OSM area code for a given region. If
 no region found, print warning and return error message
@@ -114,12 +125,15 @@ no region found, print warning and return error message
 * is_loop(c, stretch_distance): Compares trail end and trail start, if within stretch_distance, trail is considered a loop/ thru_hike
 
 
-config.py: configuration
+### config.py: configuration
+
 Our database info and MapQuest API key are stored in a config.py file that must be populated for each user. 
 
 
-Data:
+### Data:
+
 Before pushing to the database, our trails are represented by a Pandas dataframe with columns:
+
 * 'id’: id of each trail, unique. Derived from ID of first way used to create a given trail’s trail_obj (ways_to_trails)
 * ‘name’: trail name
 * ‘tags’: dictionary with tags as keys and values as lists of all tag values for a given key for a given trail
@@ -136,7 +150,8 @@ Before pushing to the database, our trails are represented by a Pandas dataframe
 * ‘bus_stops’: list of bus stops within specified radius of trail start or end
 
 
-Caveats:
+### Caveats:
+
 * Sometimes, the OSM servers are overloaded and a large query (i.e. California) will fail
 * For the ways_to_trails algorithm, the default python recursion depth must be increased to 10000 for large queries (California). Do this at your own risk, it may cause issues depending on the system
 * There is no progress bar for ways_to_trails which does take a while to run. Patience is key
