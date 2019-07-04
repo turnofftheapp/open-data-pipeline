@@ -350,7 +350,8 @@ def main():
 	BUS_RADIUS_METERS = 800
 	LOOP_COMPLETION_THRESHOLD_METERS = 20
 
-	REGION = "Ontario"
+	REGION = "Rhode Island" # Good for testing since its small
+	#REGION = "New York"
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
 
@@ -444,7 +445,7 @@ def main():
 	# print(trail_df)
 
 	# 15. Insert trails into database
-	tablename = 'destination_michigan'
+	tablename = 'destinations_osm'
 	schema = 'public'
 
 	to_db(trail_df, region_code, tablename, schema)
