@@ -4,11 +4,16 @@
 How To Run: (from /open-data-pipeline/)
 1. install dependencies: `pip3 install -r requirements.txt`
 2. Populate config.py with db info and mapquest key.
-3. Edit REGION in main()
+3. Edit REGION in main() (e.g. set `REGION = "Massachusetts"` and, only if necessary, set `COUNTRY` variable as well)
 4. run `python3 geoPipe.py`
 5. optionally, print(trail_df) to read dataframe output
 	hint: look for column headers and notice
 	how output is split to fit the terminal
+
+## Ingest into TOTAGO app
+
+1. Run `heroku run rails console -a totago`
+2. Run this command in the console `OsmPipeline.sync_destinations("REGION")` where `REGION` should be replaced with the same string set for that variable in main() within geoPipe.py (e.g. `OsmPipeline.sync_destinations("Massachusetts")`). Running `OsmPipeline.sync_destinations("REGION", false)` will import both trails found to be transit accessible as well as those not.
 
 # Issue tracker
 
@@ -17,13 +22,13 @@ https://github.com/turnofftheapp/open-data-pipeline/projects/1
 # Documentation
 
 ### OSM Query:
-´´´
+```
 [out:json][timeout:1000][maxsize:2073741824]; \
 area({0})->.searchArea; \
 (way["highway"~"path|footway|cycleway|bridleway"]\
 ["name"~"trail|Trail|Hiking|hiking"] \
 (area.searchArea););(._;>;);out;'.format(region_code)
-´´´
+```
 
 **Breakdown of what each part of this query does:**
 
