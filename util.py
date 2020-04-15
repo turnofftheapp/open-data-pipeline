@@ -76,7 +76,7 @@ def get_name(c):
 	try:
 		name = c['tags']['name']
 	except Exception as e: 
-		print('ERROR, '+ e + "on trail: " + c)
+		name = 'Unnamed trail'
 	c['name'] = str(name)
 	return c
 
