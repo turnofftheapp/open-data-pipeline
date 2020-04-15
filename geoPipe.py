@@ -313,7 +313,7 @@ def to_db(trail_df, region_code, tablename, schema=""):
 		# if table exists but is empty, go ahead and remove it so that it can be properly initialized 
 		# with to_sql
 			statement = "DROP TABLE IF EXISTS {}{}".format(schema, tablename)
-			table_exists = Falsesq
+			table_exists = False
 	print("table exists = " + str(table_exists))
 
 	if not table_exists:
