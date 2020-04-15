@@ -42,19 +42,27 @@ def queryOSM(region_code):
 
 	# Query for all of michigan
 
+	# #osmfilter $FILE_NAME.osm --keep="type=way highway=path highway=footpath route=hiking route=foot" --drop="footway=sidewalk" > $FILE_NAME-trails.osm
 
-
-	query = '[out:json][timeout:1000][maxsize:2073741824]; \
+	# maxsize: 2073741824 = big (2074 MB)
+	# maxsize: 536870912 = Overpass default maxsize (536 MB)
+	query = '[out:json][timeout:3000][maxsize:2073741824]; \
 			area({0})->.searchArea; \
-			(way["highway"~"path|footway|cycleway|bridleway"]\
-			["name"~"trail|Trail|Hiking|hiking"] \
+			(way["highway"~"path|footway|footpath|bridleway"]\
+			["footway"!~"sidewalk|crossing"] \
+			["bicycle"!~"yes|designated"]\
+			(if:length() > 200)\
 			(area.searchArea););(._;>;);out;'.format(region_code)
 
 
-	# query_by_area = '[out:json][timeout:25][maxsize:800000000]; \
-	# {{{geocodeArea:{0}}}}->.searchArea; (way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-	# (area.searchArea););(._;>;);out;'.format(region)
-	# print("query= " + str(query_by_area))
+	# Do separate query for bike/multi-use paths
+
+	# More conservative:
+	#query = '[out:json][timeout:1000][maxsize:2073741824]; \
+	#		area({0})->.searchArea; \
+	#		(way["highway"~"path|footway|cycleway|bridleway"]\
+	#		["name"~"trail|Trail|Hiking|hiking"] \
+	#		(area.searchArea););(._;>;);out;'.format(region_code)
 
 	# 	Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
 	# query = '[out:json][timeout:25]; \
