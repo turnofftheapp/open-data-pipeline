@@ -68,8 +68,8 @@ def queryOSM(region_code):
 		osmElements = osmResponse['elements']
 		return osmElements
 	except Exception as e:
-		# print("OSM API limit exceeded, please try again later")
-		return r.text
+		print(r.text)
+		raise Exception("Overpass API query failed: likely API limit exceeded or server too busy, please try again later")
 
 def splitElements(osmElements):
 	"""Splits returned OSM elements into list of ways and list of nodes
