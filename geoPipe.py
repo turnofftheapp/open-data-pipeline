@@ -46,28 +46,34 @@ def queryOSM(region_code):
 
 	# maxsize: 2073741824 = big (2074 MB)
 	# maxsize: 536870912 = Overpass default maxsize (536 MB)
+	# For much more conservative, add: ["name"~"trail|Trail|Hiking|hiking"]
 	query = '[out:json][timeout:3000][maxsize:2073741824]; \
 			area({0})->.searchArea; \
-			(way["highway"~"path|footway|footpath|bridleway"]\
-			["footway"!~"sidewalk|crossing"] \
-			["bicycle"!~"yes|designated"]\
-			(if:length() > 200)\
-			(area.searchArea););(._;>;);out;'.format(region_code)
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"] \
+				["bicycle"!~"yes|designated"]\
+				(if:length() > 200)\
+				(area.searchArea);\
+			);(._;>;);out;'.format(region_code)
 
+	# Query for bike/multi-use paths
+	query_bicycle = '[out:json][timeout:3000][maxsize:2073741824]; \
+			area({0})->.searchArea; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"]\
+				["bicycle"!~"yes|designated"]\
+				(if:length() > 200)\
+				(area.searchArea);\
+				way["highway"~"cycleway"]\
+				(area.searchArea);\
+			);(._;>;);out;'.format(region_code)
 
-	# Do separate query for bike/multi-use paths
+	# @todo:
+	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
 
-	# More conservative:
-	#query = '[out:json][timeout:1000][maxsize:2073741824]; \
-	#		area({0})->.searchArea; \
-	#		(way["highway"~"path|footway|cycleway|bridleway"]\
-	#		["name"~"trail|Trail|Hiking|hiking"] \
-	#		(area.searchArea););(._;>;);out;'.format(region_code)
-
-	# 	Example Query from: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
-	# query = '[out:json][timeout:25]; \
-	# 		(way["highway"~"path|footway|cycleway|bridleway"]["name"~"trail|Trail|Hiking|hiking"] \
-	# 		(44.165859765893586,-84.09587860107422,44.184542868841454,-84.0657091140747););(._;>;);out;'
+	# Example queries in: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
