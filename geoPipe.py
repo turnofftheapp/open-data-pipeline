@@ -27,7 +27,33 @@ pd.set_option('display.max_rows', 100000)
 pd.set_option('display.width', 1000)
 
 # type must be "bicycle" or "foot"
-def getOSMQuery(type, polygon, min_path_dist_meters):
+def getOSMQueryByPolygon(type, polygon, min_path_dist_meters):
+	if type == 'foot': 
+		return '[out:json][timeout:1000]; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"] \
+				["bicycle"!~"yes|designated"]\
+				(if:length() > {})\
+				(poly:"{}");\
+			);(._;>;);out;'.format(min_path_dist_meters, polygon)
+
+	if type == 'bicycle':
+		return '[out:json][timeout:25]; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"]\
+				["bicycle"!~"yes|designated"]\
+				(poly:"{}");\
+				way["highway"~"cycleway"]\
+				(if:length() > {})\
+				(poly:"{}");\
+			);(._;>;);out;'.format(polygon, min_path_dist_meters, polygon)
+	
+	raise Exception("Invalid type parameter value")
+
+# type must be "bicycle" or "foot"
+def getOSMQueryByRegion(type, region_code, min_path_dist_meters):
 	# #osmfilter $FILE_NAME.osm --keep="type=way highway=path highway=footpath route=hiking route=foot" --drop="footway=sidewalk" > $FILE_NAME-trails.osm
 
 	# Example queries in: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
@@ -36,8 +62,9 @@ def getOSMQuery(type, polygon, min_path_dist_meters):
 	# maxsize: 2073741824 = big (2074 MB)
 	# maxsize: 536870912 = Overpass default maxsize (536 MB)
 	# For much more conservative, add: ["name"~"trail|Trail|Hiking|hiking"]
-	region_code = "Detroit, Michigan"
-	old_foot = '[out:json][timeout:25][maxsize:4147483648]; \
+	
+	if type == 'foot': 
+		return '[out:json][timeout:25]; \
 			area({})->.searchArea; \
 			(\
 				way["highway"~"path|footway|footpath|bridleway"]\
@@ -46,7 +73,11 @@ def getOSMQuery(type, polygon, min_path_dist_meters):
 				(if:length() > {})\
 				(area.searchArea);\
 			);(._;>;);out;'.format(region_code, str(min_path_dist_meters))
-	old_bicycle = '[out:json][timeout:25][maxsize:2073741824]; \
+
+	# @todo:
+	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
+	if type == 'bicycle':
+		return '[out:json][timeout:25]; \
 			area({})->.searchArea; \
 			(\
 				way["highway"~"path|footway|footpath|bridleway"]\
@@ -58,31 +89,8 @@ def getOSMQuery(type, polygon, min_path_dist_meters):
 				(if:length() > {})\
 				(area.searchArea);\
 			);(._;>;);out;'.format(region_code, str(min_path_dist_meters), str(min_path_dist_meters))
-
-	if type == 'foot': 
-		return '[out:json][timeout:25][maxsize:4147483648]; \
-			(\
-				way["highway"~"path|footway|footpath|bridleway"]\
-				["footway"!~"sidewalk|crossing"] \
-				["bicycle"!~"yes|designated"]\
-				(poly:"{}");\
-			);(._;>;);out;'.format(polygon)
-
-	# @todo:
-	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
-	if type == 'bicycle':
-		return '[out:json][timeout:25][maxsize:2073741824]; \
-			(\
-				way["highway"~"path|footway|footpath|bridleway"]\
-				["footway"!~"sidewalk|crossing"]\
-				["bicycle"!~"yes|designated"]\
-				(poly:"{}");\
-				way["highway"~"cycleway"]\
-				(poly:"{}");\
-			);(._;>;);out;'.format(polygon, polygon)
 	
 	raise Exception("Invalid type parameter value")
-	
 
 
 ## IN: nothing, yet, will add parameters
@@ -410,18 +418,20 @@ def main():
 
 	# 1. get region code
 	region_code = util.get_region_code(REGION, COUNTRY)
+	#osmQueryFoot = getOSMQueryByPolygon("foot", region_code, MIN_PATH_DIST_METERS)
+
 	# TEMP:
 	polygon = "42.384801 -83.266191 42.333818 -83.228490 42.341895 -83.273498"
 
 	# 2. query OSM and get list of elements
 	print("\nquerying ways from OSM")
 	osmElements = []
-	osmQueryFoot = getOSMQuery("foot", polygon, MIN_PATH_DIST_METERS)
-	osmElements += queryOSM(osmQueryFoot)
+	#osmQueryFoot = getOSMQueryByPolygon("foot", polygon, MIN_PATH_DIST_METERS)
+	#osmElements += queryOSM(osmQueryFoot)
 
 	# @todo: get this working
-	#osmQueryBicycle = getOSMQuery("bicycle", polygon, MIN_PATH_DIST_METERS)
-	#osmElements += queryOSM(osmQuery_bicycle)	
+	osmQueryBicycle = getOSMQueryByPolygon("bicycle", polygon, MIN_PATH_DIST_METERS)
+	osmElements += queryOSM(osmQueryBicycle)	
 
 	# 3. split OSM elements into ways and nodes
 	print("\nsplitting elements")
