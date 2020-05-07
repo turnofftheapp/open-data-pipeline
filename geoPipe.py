@@ -46,7 +46,7 @@ def getOSMQueryByPolygon(type, polygon, min_path_dist_meters):
 			(\
 				way["highway"~"path|footway|footpath|bridleway"]\
 				["footway"!~"sidewalk|crossing"]\
-				["bicycle"!~"yes|designated"]\
+				["bicycle"~"yes|designated"]\
 				(poly:"{}");\
 				way["highway"~"cycleway"]\
 				(if:length() > {})\
