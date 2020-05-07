@@ -64,7 +64,7 @@ def getOSMQueryByRegion(type, region_code, min_path_dist_meters):
 	# For much more conservative, add: ["name"~"trail|Trail|Hiking|hiking"]
 	
 	if type == 'foot': 
-		return '[out:json][timeout:25]; \
+		return '[out:json][timeout:3000][maxsize:2073741824]; \
 			area({})->.searchArea; \
 			(\
 				way["highway"~"path|footway|footpath|bridleway"]\
@@ -73,6 +73,7 @@ def getOSMQueryByRegion(type, region_code, min_path_dist_meters):
 				(if:length() > {})\
 				(area.searchArea);\
 			);(._;>;);out;'.format(region_code, str(min_path_dist_meters))
+
 
 	# @todo:
 	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
@@ -400,6 +401,7 @@ def main():
 	REGION = "Wayne County, Michigan" # Good for testing since its small
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
+	TYPE = "foot" # foot or bicycle
 
 	""" Executes pipeline logic
 	Process:
@@ -416,22 +418,31 @@ def main():
 	# to change tqdm's behavior. 
 	tqdm.pandas()
 
-	# 1. get region code
-	region_code = util.get_region_code(REGION, COUNTRY)
-	#osmQueryFoot = getOSMQueryByPolygon("foot", region_code, MIN_PATH_DIST_METERS)
+	
+	parksJson = util.get_parks()
 
-	# TEMP:
-	polygon = "42.384801 -83.266191 42.333818 -83.228490 42.341895 -83.273498"
+	#for feature in parksJson["features"]:
+		#polygonCoordinates = feature["geometry"]["coordinates"][0]
 
-	# 2. query OSM and get list of elements
+	polygon = ""
+	polygonCoordinates = parksJson["features"][1]["geometry"]["coordinates"][0]
+	for coord in polygonCoordinates:
+		polygon += str(coord[0]) + " " + str(coord[1]) + " "
+	polygon = polygon[:-1]
+
+	#import pdb; pdb.set_trace()
+	#polygon = "42.384801 -83.266191 42.333818 -83.228490 42.341895 -83.273498"
+	
+
 	print("\nquerying ways from OSM")
-	osmElements = []
-	#osmQueryFoot = getOSMQueryByPolygon("foot", polygon, MIN_PATH_DIST_METERS)
-	#osmElements += queryOSM(osmQueryFoot)
+	# 1a. query OSM by region
+	region_code = util.get_region_code(REGION, COUNTRY)
+	#osmQuery = getOSMQueryByRegion(TYPE, region_code, MIN_PATH_DIST_METERS)
+	#osmElements = queryOSM(osmQuery)
 
-	# @todo: get this working
-	osmQueryBicycle = getOSMQueryByPolygon("bicycle", polygon, MIN_PATH_DIST_METERS)
-	osmElements += queryOSM(osmQueryBicycle)	
+	# 1b. query OSM by polygon
+	osmQuery = getOSMQueryByPolygon(TYPE, polygon, MIN_PATH_DIST_METERS)
+	osmElements = queryOSM(osmQuery)
 
 	# 3. split OSM elements into ways and nodes
 	print("\nsplitting elements")
@@ -465,6 +476,8 @@ def main():
 	else:
 		trail_df['region_name'] = str(REGION)
 
+	trail_df['region_name'] += "_" + TYPE
+
 	# 8. Get geoJSON objects for each trail
 	print("\nconverting to geoJSON LineString")
 	trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
@@ -495,7 +508,7 @@ def main():
 
 	# 14. Find bus stops
 	print("\nfinding bus stops")
-	trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
+	#trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
 
 	# print(trail_df.columns)
 	# print(trail_df)
