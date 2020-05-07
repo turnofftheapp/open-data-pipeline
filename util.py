@@ -44,10 +44,15 @@ def get_parks():
 
 	try:
 		r = requests.get(query_url)
-		return json.loads(r.text)
+		#return json.loads(r.text)
+		return r.text
 	except Exception as e:
 		print("Error running ArcGIS query, error below: ")
 		return e
+
+def coord_lister(geom):
+    coords = list(geom.exterior.coords)
+    return (coords)
 
 # This one uses MapQuests API
 def get_region_code(location_query, country_full_name="", base_code = 3600000000):
