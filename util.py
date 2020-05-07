@@ -50,9 +50,17 @@ def get_parks():
 		print("Error running ArcGIS query, error below: ")
 		return e
 
+## Geometric
 def coord_lister(geom):
     coords = list(geom.exterior.coords)
     return (coords)
+
+def get_osm_polygon_string(coordinates):
+    polygon = ""
+    for coord in coordinates:
+        polygon += str(coord[1]) + " " + str(coord[0]) + " "
+    polygon = polygon[:-1]
+    return polygon
 
 # This one uses MapQuests API
 def get_region_code(location_query, country_full_name="", base_code = 3600000000):

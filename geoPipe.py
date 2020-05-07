@@ -422,24 +422,13 @@ def main():
 	tqdm.pandas()
 
 	
-	#parksGeoJson = util.get_parks()
-
 	query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.119352%2C42.427064%2C-83.109729%2C42.432867&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1"
-
 	parksGeoJson = geopandas.read_file(query_url)
 
 	envelopeCoordinates = parksGeoJson.envelope.geometry.apply(util.coord_lister)[0]
+	polygon = util.get_osm_polygon_string(envelopeCoordinates)
 
-	#polygonCoordinates = parksJson["features"][1]["geometry"]["coordinates"][0]
-	
-	#polygon = "42.384801 -83.266191 42.333818 -83.228490 42.341895 -83.273498"
-
-	polygon = ""
-	for coord in envelopeCoordinates:
-		polygon += str(coord[1]) + " " + str(coord[0]) + " "
-	polygon = polygon[:-1]
-
-	import pdb; pdb.set_trace()
+	#import pdb; pdb.set_trace()
 	
 	
 
