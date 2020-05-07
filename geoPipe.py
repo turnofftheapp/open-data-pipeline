@@ -26,9 +26,68 @@ pd.set_option('display.max_columns', 100)
 pd.set_option('display.max_rows', 100000)
 pd.set_option('display.width', 1000)
 
+# type must be "bicycle" or "foot"
+def getOSMQuery(type, polygon, min_path_dist_meters):
+	# #osmfilter $FILE_NAME.osm --keep="type=way highway=path highway=footpath route=hiking route=foot" --drop="footway=sidewalk" > $FILE_NAME-trails.osm
+
+	# Example queries in: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
+
+	# TRY BBOX: (-83.27293,42.35854,-83.09097,42.29509)
+	# maxsize: 2073741824 = big (2074 MB)
+	# maxsize: 536870912 = Overpass default maxsize (536 MB)
+	# For much more conservative, add: ["name"~"trail|Trail|Hiking|hiking"]
+	region_code = "Detroit, Michigan"
+	old_foot = '[out:json][timeout:25][maxsize:4147483648]; \
+			area({})->.searchArea; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"] \
+				["bicycle"!~"yes|designated"]\
+				(if:length() > {})\
+				(area.searchArea);\
+			);(._;>;);out;'.format(region_code, str(min_path_dist_meters))
+	old_bicycle = '[out:json][timeout:25][maxsize:2073741824]; \
+			area({})->.searchArea; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"]\
+				["bicycle"!~"yes|designated"]\
+				(if:length() > {})\
+				(area.searchArea);\
+				way["highway"~"cycleway"]\
+				(if:length() > {})\
+				(area.searchArea);\
+			);(._;>;);out;'.format(region_code, str(min_path_dist_meters), str(min_path_dist_meters))
+
+	if type == 'foot': 
+		return '[out:json][timeout:25][maxsize:4147483648]; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"] \
+				["bicycle"!~"yes|designated"]\
+				(poly:"{}");\
+			);(._;>;);out;'.format(polygon)
+
+	# @todo:
+	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
+	if type == 'bicycle':
+		return '[out:json][timeout:25][maxsize:2073741824]; \
+			(\
+				way["highway"~"path|footway|footpath|bridleway"]\
+				["footway"!~"sidewalk|crossing"]\
+				["bicycle"!~"yes|designated"]\
+				(poly:"{}");\
+				way["highway"~"cycleway"]\
+				(poly:"{}");\
+			);(._;>;);out;'.format(polygon, polygon)
+	
+	raise Exception("Invalid type parameter value")
+	
+
+
 ## IN: nothing, yet, will add parameters
 ## Out: nodeID, begin_lat, begin_lon, end_lat, end_lon
-def queryOSM(region_code):
+def queryOSM(query):
 	"""Sends a get request to OSM servers > response
 
 	Args:
@@ -37,43 +96,7 @@ def queryOSM(region_code):
 	Returns:
 		list of elements returned from OSM
 	"""
-
-	# area = util.get_state_area_id(state)
-
-	# Query for all of michigan
-
-	# #osmfilter $FILE_NAME.osm --keep="type=way highway=path highway=footpath route=hiking route=foot" --drop="footway=sidewalk" > $FILE_NAME-trails.osm
-
-	# maxsize: 2073741824 = big (2074 MB)
-	# maxsize: 536870912 = Overpass default maxsize (536 MB)
-	# For much more conservative, add: ["name"~"trail|Trail|Hiking|hiking"]
-	query = '[out:json][timeout:3000][maxsize:2073741824]; \
-			area({0})->.searchArea; \
-			(\
-				way["highway"~"path|footway|footpath|bridleway"]\
-				["footway"!~"sidewalk|crossing"] \
-				["bicycle"!~"yes|designated"]\
-				(if:length() > 200)\
-				(area.searchArea);\
-			);(._;>;);out;'.format(region_code)
-
-	# Query for bike/multi-use paths
-	query_bicycle = '[out:json][timeout:3000][maxsize:2073741824]; \
-			area({0})->.searchArea; \
-			(\
-				way["highway"~"path|footway|footpath|bridleway"]\
-				["footway"!~"sidewalk|crossing"]\
-				["bicycle"!~"yes|designated"]\
-				(if:length() > 200)\
-				(area.searchArea);\
-				way["highway"~"cycleway"]\
-				(area.searchArea);\
-			);(._;>;);out;'.format(region_code)
-
-	# @todo:
-	# Extract values from "surface" tag and publish (what happens when multiple are stitched together?)
-
-	# Example queries in: https://docs.google.com/document/d/17dRRiEn9U41Q7AtO6giAw15deeOHq9nOL1Pn1wWWSJg/edit?usp=sharing
+	print(query)
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -360,12 +383,13 @@ def main():
 
 	sys.setrecursionlimit(10000)
 
+	MIN_PATH_DIST_METERS = 200
 	MAX_REPAIR_DIST_METERS = 150
 	BUS_RADIUS_METERS = 800
 	LOOP_COMPLETION_THRESHOLD_METERS = 20
 
-	REGION = "Rhode Island" # Good for testing since its small
-	#REGION = "New York"
+	# Test region queries here: https://nominatim.openstreetmap.org/search.php
+	REGION = "Wayne County, Michigan" # Good for testing since its small
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
 
@@ -386,10 +410,18 @@ def main():
 
 	# 1. get region code
 	region_code = util.get_region_code(REGION, COUNTRY)
+	# TEMP:
+	polygon = "42.384801 -83.266191 42.333818 -83.228490 42.341895 -83.273498"
 
 	# 2. query OSM and get list of elements
 	print("\nquerying ways from OSM")
-	osmElements = queryOSM(region_code)
+	osmElements = []
+	osmQueryFoot = getOSMQuery("foot", polygon, MIN_PATH_DIST_METERS)
+	osmElements += queryOSM(osmQueryFoot)
+
+	# @todo: get this working
+	#osmQueryBicycle = getOSMQuery("bicycle", polygon, MIN_PATH_DIST_METERS)
+	#osmElements += queryOSM(osmQuery_bicycle)	
 
 	# 3. split OSM elements into ways and nodes
 	print("\nsplitting elements")
