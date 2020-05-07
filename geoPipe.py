@@ -37,9 +37,8 @@ def getOSMQueryByPolygon(type, polygon, min_path_dist_meters):
 				way["highway"~"path|footway|footpath|bridleway"]\
 				["footway"!~"sidewalk|crossing"] \
 				["bicycle"!~"yes|designated"]\
-				(if:length() > {})\
 				(poly:"{}");\
-			);(._;>;);out;'.format(min_path_dist_meters, polygon)
+			);(._;>;);out;'.format(polygon)
 
 	if type == 'bicycle':
 		return '[out:json][timeout:25]; \
@@ -49,9 +48,8 @@ def getOSMQueryByPolygon(type, polygon, min_path_dist_meters):
 				["bicycle"~"yes|designated"]\
 				(poly:"{}");\
 				way["highway"~"cycleway"]\
-				(if:length() > {})\
 				(poly:"{}");\
-			);(._;>;);out;'.format(polygon, min_path_dist_meters, polygon)
+			);(._;>;);out;'.format(polygon, polygon)
 	
 	raise Exception("Invalid type parameter value")
 
@@ -401,7 +399,7 @@ def main():
 	LOOP_COMPLETION_THRESHOLD_METERS = 20
 
 	# Test region queries here: https://nominatim.openstreetmap.org/search.php
-	REGION = "Wayne County, Michigan" # Good for testing since its small
+	REGION = "Southeast Michigan" # Good for testing since its small
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
 	TYPE = "foot" # foot or bicycle
@@ -423,13 +421,12 @@ def main():
 
 	
 	query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.119352%2C42.427064%2C-83.109729%2C42.432867&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1"
-	parksGeoJson = geopandas.read_file(query_url)
+	parks_geojson = geopandas.read_file(query_url)
 
-	envelopeCoordinates = parksGeoJson.envelope.geometry.apply(util.coord_lister)[0]
-	polygon = util.get_osm_polygon_string(envelopeCoordinates)
 
-	#import pdb; pdb.set_trace()
-	
+	envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
+	polygon = util.get_osm_polygon_string(envelope_coords)
+	region_code = parks_geojson.Park_Name[0]
 	
 
 	print("\nquerying ways from OSM")
