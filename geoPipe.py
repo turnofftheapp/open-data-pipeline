@@ -106,7 +106,6 @@ def queryOSM(query):
 	Returns:
 		list of elements returned from OSM
 	"""
-	print(query)
 
 	pckg = {'data':query}
 	r = requests.get('https://overpass-api.de/api/interpreter', params=pckg)
@@ -341,7 +340,7 @@ def to_db(trail_df, region_code, tablename, schema=""):
 			config.host+':'+'5432'\
 			+'/'+'totago',echo=False)
 	conn = engine.connect()
-	print("engine initialized")
+	#print("engine initialized")
 
 	# Does table exist?
 	table_exists = engine.has_table(tablename)
@@ -353,7 +352,7 @@ def to_db(trail_df, region_code, tablename, schema=""):
 		# with to_sql
 			statement = "DROP TABLE IF EXISTS {}{}".format(schema, tablename)
 			table_exists = False
-	print("table exists = " + str(table_exists))
+	#print("table exists = " + str(table_exists))
 
 	if not table_exists:
 		trail_df.to_sql(name=tablename, con=conn, if_exists='append', index=False)
@@ -388,7 +387,6 @@ def to_db(trail_df, region_code, tablename, schema=""):
 
 	return 1
 
-
 def main():
 
 	sys.setrecursionlimit(10000)
@@ -402,7 +400,13 @@ def main():
 	REGION = "Southeast Michigan" # Good for testing since its small
 	## specify country in cases where multiple same-named regions exist
 	COUNTRY = ""
+
 	TYPE = "foot" # foot or bicycle
+	where_query = "Park_Size_Acres > 5 AND Park_Size_Acres < 10"
+	#Park_Size_Acres > 5 AND Park_Size_Acres < 10
+
+	# Dearborn area (SW corner) to St. Claire Shores (NE corner)
+	geometry_query = "-83.280879,42.268401,-82.806811,42.659880" 
 
 	""" Executes pipeline logic
 	Process:
@@ -418,103 +422,126 @@ def main():
 	# Because we're doing all our transformations with cython functions, we dont need to touch code in the functions
 	# to change tqdm's behavior. 
 	tqdm.pandas()
-
 	
-	query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.119352%2C42.427064%2C-83.109729%2C42.432867&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1"
-	parks_geojson = geopandas.read_file(query_url)
+	#parks_geojson_raw = util.get_parks_geojson()
+
+	total_features = 0
+	num_features = 1
+	offset = -1
+	while num_features > 0:
+		offset += 1
+
+		query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=" + where_query + "&text=&objectIds=&time=&geometry=" + geometry_query + "&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1&resultOffset=" + str(offset)
+
+		print(query_url)
+
+		parks_geojson = geopandas.read_file(query_url)
+
+		# TEMP: for debugging
+		#parks_geojson = geopandas.read_file(query_url, rows=1)
+		#parks_geojson = geopandas.read_file(query_url, rows=slice(1, 2))
+		#import pdb; pdb.set_trace()
+
+		num_features = len(parks_geojson.index)
+		if num_features == 0:
+			break
+
+		envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
+		polygon = util.get_osm_polygon_string(envelope_coords)
+		park_name = parks_geojson.Park_Name[0]
+
+		# TEMP:
+		region_code = park_name
+
+		print("\nquerying ways from OSM")
+		
+		# 1a. query OSM by region
+		#region_code = util.get_region_code(REGION, COUNTRY)
+		#osmQuery = getOSMQueryByRegion(TYPE, region_code, MIN_PATH_DIST_METERS)
+		#osmElements = queryOSM(osmQuery)
+
+		# 1b. query OSM by polygon
+		osmQuery = getOSMQueryByPolygon(TYPE, polygon, MIN_PATH_DIST_METERS)
+		osmElements = queryOSM(osmQuery)
+
+		# 3. split OSM elements into ways and nodes
+		print("\nsplitting elements")
+		ways_and_nodes = splitElements(osmElements)
+		ways = ways_and_nodes[0]
+		nodes = ways_and_nodes[1]
+
+		way_df = pd.DataFrame(ways)
+		node_df = pd.DataFrame(nodes)
+
+		# 4. get all nodes lat and lon for each way
+		print("\ninjecting node coordinates into ways")
+		way_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
+
+		# 5. name each trail
+		print("\nnaming trails")
+		way_df = way_df.progress_apply(util.get_name, axis=1)
+
+		# 6. Form new dataframe of trails, repair the ways within them
+		print("\nconverting ways to trails, this may take a while...")
+		trail_df_initial = []
+		trail_df_list = ways_to_trails(way_df, trail_df_initial, MAX_REPAIR_DIST_METERS)[1]
+		trail_df = pd.DataFrame(trail_df_list)
+
+		# 7. Add column with region code, Add column with region name
+		# trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
+		print("\nAdding columns for region code and region name")
+		trail_df['region_code'] = region_code
+		if COUNTRY != "":
+			trail_df['region_name'] = str(REGION) + ", " + str(COUNTRY)
+		else:
+			trail_df['region_name'] = str(REGION)
+
+		trail_df['region_name'] += "_" + TYPE
+
+		# 8. Get geoJSON objects for each trail
+		print("\nconverting to geoJSON LineString")
+		trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
+		print("\nconverting to geoJSON MultiLineString")
+		trail_df = trail_df.apply(util.get_LineString, axis=1)
 
 
-	envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
-	polygon = util.get_osm_polygon_string(envelope_coords)
-	region_code = parks_geojson.Park_Name[0]
-	
+		# 9. Encode polyline
+		print("\nencoding polyline")
+		trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
 
-	print("\nquerying ways from OSM")
-	# 1a. query OSM by region
-	region_code = util.get_region_code(REGION, COUNTRY)
-	#osmQuery = getOSMQueryByRegion(TYPE, region_code, MIN_PATH_DIST_METERS)
-	#osmElements = queryOSM(osmQuery)
+		# 10. Repair tags
+		print("\nrepairing tags")
+		trail_df = trail_df.apply(util.repair_tags, axis=1)
 
-	# 1b. query OSM by polygon
-	osmQuery = getOSMQueryByPolygon(TYPE, polygon, MIN_PATH_DIST_METERS)
-	osmElements = queryOSM(osmQuery)
+		# 11. Get trail endpoints
+		print("\ngetting trail endpoints")
+		trail_df = trail_df.apply(util.pop_endpoints, axis=1)
 
-	# 3. split OSM elements into ways and nodes
-	print("\nsplitting elements")
-	ways_and_nodes = splitElements(osmElements)
-	ways = ways_and_nodes[0]
-	nodes = ways_and_nodes[1]
+		# 12. Calculate distance of trail (using LineString)
+		print("\ncalculating trail distances")
+		trail_df = trail_df.progress_apply(util.get_distance, axis=1)
 
-	way_df = pd.DataFrame(ways)
-	node_df = pd.DataFrame(nodes)
+		# 13. Determine trail shape
+		print("\ndetermining trail shape")
+		trail_df = trail_df.apply(util.is_loop, args=(LOOP_COMPLETION_THRESHOLD_METERS, ), axis=1)
 
-	# 4. get all nodes lat and lon for each way
-	print("\ninjecting node coordinates into ways")
-	way_df = way_df.progress_apply(injectNodes, node_df=node_df, axis=1)
+		# 14. Find bus stops
+		#print("\nfinding bus stops")
+		#trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
 
-	# 5. name each trail
-	print("\nnaming trails")
-	way_df = way_df.progress_apply(util.get_name, axis=1)
+		# print(trail_df.columns)
+		# print(trail_df)
 
-	# 6. Form new dataframe of trails, repair the ways within them
-	print("\nconverting ways to trails, this may take a while...")
-	trail_df_initial = []
-	trail_df_list = ways_to_trails(way_df, trail_df_initial, MAX_REPAIR_DIST_METERS)[1]
-	trail_df = pd.DataFrame(trail_df_list)
+		# 15. Insert trails into database
+		print("\nUploading to DB")
+		tablename = 'destinations_osm'
+		schema = 'public'
+		to_db(trail_df, region_code, tablename, schema)
 
-	# 7. Add column with region code, Add column with region name
-	# trail_df = trail_df.apply(util.pop_region, args=(REGION, COUNTRY), axis=1)
-	print("\nAdding columns for region code and region name")
-	trail_df['region_code'] = region_code
-	if COUNTRY != "":
-		trail_df['region_name'] = str(REGION) + ", " + str(COUNTRY)
-	else:
-		trail_df['region_name'] = str(REGION)
+		total_features += len(trail_df)
+		print("found " + str(total_features) + " trails so far")
 
-	trail_df['region_name'] += "_" + TYPE
-
-	# 8. Get geoJSON objects for each trail
-	print("\nconverting to geoJSON LineString")
-	trail_df = trail_df.apply(util.get_MultiLineString, axis=1)
-	print("\nconverting to geoJSON MultiLineString")
-	trail_df = trail_df.apply(util.get_LineString, axis=1)
-
-
-	# 9. Encode polyline
-	print("\nencoding polyline")
-	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
-
-	# 10. Repair tags
-	print("\nrepairing tags")
-	trail_df = trail_df.apply(util.repair_tags, axis=1)
-
-	# 11. Get trail endpoints
-	print("\ngetting trail endpoints")
-	trail_df = trail_df.apply(util.pop_endpoints, axis=1)
-
-	# 12. Calculate distance of trail (using LineString)
-	print("\ncalculating trail distances")
-	trail_df = trail_df.progress_apply(util.get_distance, axis=1)
-
-	# 13. Determine trail shape
-	print("\ndetermining trail shape")
-	trail_df = trail_df.apply(util.is_loop, args=(LOOP_COMPLETION_THRESHOLD_METERS, ), axis=1)
-
-
-	# 14. Find bus stops
-	print("\nfinding bus stops")
-	#trail_df = trail_df.progress_apply(util.get_bus, args=(BUS_RADIUS_METERS, ), axis=1)
-
-	# print(trail_df.columns)
-	# print(trail_df)
-
-	# 15. Insert trails into database
-	tablename = 'destinations_osm'
-	schema = 'public'
-
-	to_db(trail_df, region_code, tablename, schema)
-
-	print("found " + str(len(trail_df)) + " trails in " + REGION)
+	print("found total of " + str(total_features) + " trails in " + REGION)
 
 
 

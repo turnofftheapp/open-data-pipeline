@@ -15,37 +15,17 @@ from itertools import chain
 
 import config
 
-def get_parks():
-	#Test out data, see if its usable:
-	#https://www.tpl.org/parkserve/downloads
-
-	#"Docs": https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0
-
-	
-	#BL: -83.138746,42.413618  or palmer:  -83.119352,42.427064
-	#TR: -83.109729,42.432867
-	#-83.138746,42.413618,-83.109729,42.432867
-
-	#{"wkid" : 4326}
-
-	#returnExtentOnly=true
-	#geometryType=esriGeometryPoint&geometry=
-	#&geometry=-125.4%2C35.2%2C-118.7%2C43.8&geometryType=esriGeometryEnvelope
-
-	# Simple
-	query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.119352%2C42.427064%2C-83.109729%2C42.432867&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson"
-
-
-	# Works with envelope intersect near Palmer park
-	query_all_fields = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.119352%2C42.427064%2C-83.109729%2C42.432867&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&f=geojson"
+def get_parks_geojson():
+	# Test out data, see if its usable:
+	# https://www.tpl.org/parkserve/downloads
+	# API Docs: https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0
 
 	# Works with point intersect
-	query_point_intersect = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.25533179639743%2C42.35736369223912&geometryType=esriGeometryPoint&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&f=geojson"
+	#query_point_intersect = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.25533179639743%2C42.35736369223912&geometryType=esriGeometryPoint&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&f=geojson"
 
 	try:
 		r = requests.get(query_url)
-		#return json.loads(r.text)
-		return r.text
+		return json.loads(r.text)
 	except Exception as e:
 		print("Error running ArcGIS query, error below: ")
 		return e
@@ -123,7 +103,7 @@ def get_name(c):
 	try:
 		name = c['tags']['name']
 	except Exception as e: 
-		name = 'Unnamed trail'
+		name = ""
 	c['name'] = str(name)
 	return c
 
