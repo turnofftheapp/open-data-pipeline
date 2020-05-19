@@ -42,6 +42,14 @@ def get_osm_polygon_string(coordinates):
     polygon = polygon[:-1]
     return polygon
 
+def get_osm_polygon_string_from_multipolygon(polygon_obj):
+	x, y = polygon_obj.exterior.coords.xy
+	polygon = ""
+	for j in range(len(x)):
+		polygon += str(x[j]) + " " + str(y[j]) + " "
+	polygon = polygon[:-1]
+	return polygon
+
 # This one uses MapQuests API
 def get_region_code(location_query, country_full_name="", base_code = 3600000000):
 	''' Queries MapQuest's Nominatum API to find codes for region polygons
