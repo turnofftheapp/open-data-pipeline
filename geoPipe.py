@@ -47,7 +47,7 @@ where_query = "Park_Size_Acres>20"
 # Dearborn area (SW corner) to St. Claire Shores (NE corner)
 geometry_query = "-83.280879,42.268401,-82.806811,42.659880" 
 
-POLYGON_SIMPLIFICATION_THRESHOLD = 0.2
+POLYGON_SIMPLIFICATION_THRESHOLD = 0.0004
 
 # History:
 # Park_Size_Acres>5+AND+Park_Size_Acres<10 ... offset: 25
@@ -544,19 +544,15 @@ def main():
 			break
 
 		
-		park_name = parks_geojson.Park_Name[0]
-
-
-		#### OLD envelop approach
+		# OLD envelop approach
 		#envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
 		
-		if parks_geojson.geometry.type[0] == "Polygon":
-			##### TO DE-DUPLICATE
-			parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
-			
-			convex_hull_coords = parks_geojson_simplified.geometry.convex_hull.apply(util.coord_lister)[0]
+		park_name = parks_geojson.Park_Name[0]
 
-			polygon = util.get_osm_polygon_string(convex_hull_coords)
+		if parks_geojson.geometry.type[0] == "Polygon":
+			parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
+			parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
+			polygon = util.get_osm_polygon_string(parks_geojson_simplified_coords)
 			total_features += add_osm_trails_within_polygon(polygon, park_name)
 
 		elif parks_geojson.geometry.type[0] == "MultiPolygon":
@@ -568,10 +564,12 @@ def main():
 				region_code = park_name + "_" + str(park_polygon_index)
 				park_polygon_index += 1
 
-				##### TO DE-DUPLICATE
 				parks_geojson_simplified = cur_polygon.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
 
-				polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)				
+				# For debugging: output GeoJSON string
+				# util.get_polygon_geojson_from_multipolygon(parks_geojson_simplified)
+
+				polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
 				total_features += add_osm_trails_within_polygon(polygon, park_name)
 
 		else:
