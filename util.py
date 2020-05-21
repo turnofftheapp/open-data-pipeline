@@ -58,6 +58,13 @@ def get_polygon_geojson_from_multipolygon(polygon_obj):
 	polygon = polygon[:-1]
 	return '{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[' + polygon + ']]},"properties":{}}]}'
 
+def count_ways(osm_elements):
+	num_ways = 0
+	for element in osm_elements: 
+		if element['type'] == 'way':
+			num_ways += 1
+	return num_ways
+
 # This one uses MapQuests API
 def get_region_code(location_query, country_full_name="", base_code = 3600000000):
 	''' Queries MapQuest's Nominatum API to find codes for region polygons
