@@ -552,6 +552,8 @@ def main():
 		#envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
 		
 		park_name = parks_geojson.Park_Name[0]
+		# Prevents database syntax errors (there's probably a better way to do this)
+		park_name = park_name.replace("'", "''")
 
 		if parks_geojson.geometry.type[0] == "Polygon":
 			parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
