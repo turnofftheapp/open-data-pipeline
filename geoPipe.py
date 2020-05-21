@@ -429,6 +429,10 @@ def add_osm_trails_within_polygon(polygon, region_code):
 	osmQuery = getOSMQueryByPolygon(TYPE, polygon, MIN_PATH_DIST_METERS)
 	osmElements = queryOSM(osmQuery)
 
+	# Must have at least 2 ways
+	if util.count_ways(osmElements) <= 1:
+		return 0
+
 	# 3. split OSM elements into ways and nodes
 	print("\nsplitting elements")
 	ways_and_nodes = splitElements(osmElements)
