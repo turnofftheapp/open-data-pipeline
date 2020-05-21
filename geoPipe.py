@@ -20,6 +20,7 @@ import geopandas
 ## HELPFUL UTILITY FUNCTIONS ##
 import util
 import config
+import time
 
 # WAYLIMIT = 100
 # requests_cache.install_cache('demo_cache')
@@ -36,24 +37,27 @@ MIN_PATH_DIST_METERS = 200
 MAX_REPAIR_DIST_METERS = 150
 BUS_RADIUS_METERS = 800
 LOOP_COMPLETION_THRESHOLD_METERS = 20
-
-# Test region queries here: https://nominatim.openstreetmap.org/search.php
-REGION = "Southeast Michigan" # Good for testing since its small
-## specify country in cases where multiple same-named regions exist
-COUNTRY = ""
-
-TYPE = "foot" # foot or bicycle
-where_query = "Park_Size_Acres>20"
-# Dearborn area (SW corner) to St. Claire Shores (NE corner)
-geometry_query = "-83.280879,42.268401,-82.806811,42.659880" 
-
 POLYGON_SIMPLIFICATION_THRESHOLD = 0.0004
 
-# History:
-# Park_Size_Acres>5+AND+Park_Size_Acres<10 ... offset: 25
+# TO CHANGE MANUALLY
+SLEEP_BETWEEN_QUERIES_SEC = 2
+OFFSET_START = -1  # -1 default
+
+REGION = "Southeast Michigan" 
+COUNTRY = "" # specify country in cases where multiple same-named regions exist
+
+TYPE = "bicycle" # foot or bicycle
+where_query = "Park_Size_Acres>40"
+geometry_query = "-83.280879,42.268401,-82.806811,42.659880" # Dearborn area (SW corner) to St. Claire Shores (NE corner)
+
+#################
+
+# History/notes:
+# 	where_query = "Park_Size_Acres>5+AND+Park_Size_Acres<10"
+# 	Test region queries here: 
+#		https://nominatim.openstreetmap.org/search.php
 
 # ArcGIS UI for API
-
 # https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=Park_Size_Acres+%3E+5+AND+Park_Size_Acres+%3C+10&text=&objectIds=&time=&geometry=-83.280879%2C42.268401%2C-82.806811%2C42.659880&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&relationParam=&outFields=Park_Name%2CPark_Local_Owner%2CPark_Local_Manager%2CPark_Size_Acres&returnGeometry=true&returnTrueCurves=true&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=true&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=1&resultRecordCount=500&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&f=html
 
 #################
@@ -533,7 +537,7 @@ def main():
 
 	total_features = 0
 	num_features = 1
-	offset = -1
+	offset = OFFSET_START
 	while num_features > 0:
 		offset += 1
 
@@ -547,7 +551,6 @@ def main():
 		if num_features == 0:
 			break
 
-		
 		# OLD envelop approach
 		#envelope_coords = parks_geojson.envelope.geometry.apply(util.coord_lister)[0]
 		
@@ -555,17 +558,20 @@ def main():
 		# Prevents database syntax errors (there's probably a better way to do this)
 		park_name = park_name.replace("'", "''")
 
+		park_polygon_index = 0
 		if parks_geojson.geometry.type[0] == "Polygon":
+			region_code = park_name + "_" + str(park_polygon_index)
 			parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
 			parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
 			polygon = util.get_osm_polygon_string(parks_geojson_simplified_coords)
-			total_features += add_osm_trails_within_polygon(polygon, park_name)
+			total_features += add_osm_trails_within_polygon(polygon, region_code)
+
+			time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
 
 		elif parks_geojson.geometry.type[0] == "MultiPolygon":
 			polygons = parks_geojson.geometry[0]
 
 			# Iterate over each polygon
-			park_polygon_index = 0
 			for cur_polygon in polygons:
 				region_code = park_name + "_" + str(park_polygon_index)
 				park_polygon_index += 1
@@ -576,7 +582,9 @@ def main():
 				# util.get_polygon_geojson_from_multipolygon(parks_geojson_simplified)
 
 				polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
-				total_features += add_osm_trails_within_polygon(polygon, park_name)
+				total_features += add_osm_trails_within_polygon(polygon, region_code)
+
+				time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
 
 		else:
 			raise "Unknown geometry type: " + parks_geojson.geometry.type[0]
