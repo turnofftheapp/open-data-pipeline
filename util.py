@@ -114,7 +114,7 @@ def get_region_code(location_query, country_full_name="", base_code = 3600000000
 # 	return c
 
 
-def get_name(c):
+def get_name(c, park_name):
 	"""creates new column name for each row of dataframe, fills with name string from tags object
 
 	Args:
@@ -124,10 +124,10 @@ def get_name(c):
 		new column with trail name
 	"""
 	try:
-		name = c['tags']['name']
+		name = park_name + " - " + c['tags']['name']
 	except Exception as e: 
 		name = ""
-	c['name'] = str(name)
+	c['name'] = park_name
 	return c
 
 
