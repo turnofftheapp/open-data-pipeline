@@ -53,15 +53,18 @@ REGIONS = {
 }
 TYPES = {
 	"bicycle": "bicycle",
-	"foot": "foot"
+	"foot": "foot",
+	"park": "park"
 }
 ### TO CHANGE MANUALLY ###
 
 REGION = REGIONS["Southeast Michigan"]
-TYPE = TYPES["bicycle"]
+TYPE = TYPES["park"]
+
+# TODO: 
+# For any park less than 25 acres, just include centroid for each polygon
 
 WHERE_QUERY = "Park_Size_Acres>20"
-
 ########################## 
 
 
@@ -358,8 +361,33 @@ def ways_to_trails(way_df, trail_list, MAX_REPAIR_DIST_METERS):
 	# finally, if way_df still contains items, call ways_to_trails again with the new way_df and trail_list
 	return(ways_to_trails(way_df, trail_list, MAX_REPAIR_DIST_METERS))
 
+def get_region_name():
+	return str(REGION["region_id"])
+	#if COUNTRY != "":
+	#	return str(REGION["region_id"]) + ", " + str(COUNTRY)
+	#else:
+	#	return str(REGION["region_id"])
 
+def create_park_record(park_name, park_region_code, lat, lon):
+	cur_polygon.centroid.x
+	cur_polygon.centroid.y
 
+	trail_list = []
+	trail_list.append({
+		'id': park_region_code,
+		'name': park_name,
+		'region_code': park_region_code,
+		'region_name': get_region_name()
+		'trail_start': 'lat,lng',
+		#'tags': ''
+	})
+
+	trail_df = pd.DataFrame(trail_df_list)
+
+	print("\nUploading to DB")
+	tablename = 'destinations_osm'
+	schema = 'public'
+	to_db(trail_df, region_code, tablename, schema)
 
 def to_db(trail_df, region_code, tablename, schema=""):
 	'''Args: trail_df
@@ -434,9 +462,6 @@ def to_db(trail_df, region_code, tablename, schema=""):
 	return 1
 
 def add_osm_trails_within_polygon(polygon, region_code, park_name):
-
-	COUNTRY = "" # specify country in cases where multiple same-named regions exist
-
 	print("\nquerying ways from OSM")
 
 	# 1a. query OSM by region
@@ -450,6 +475,7 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	osmElements = queryOSM(osmQuery)
 
 	# Must have at least 2 ways
+	# TODO: see if this is overly restrictive
 	if util.count_ways(osmElements) <= 1:
 		return 0
 
@@ -480,10 +506,7 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	# trail_df = trail_df.apply(util.pop_region, args=(REGION["region_id"], COUNTRY), axis=1)
 	print("\nAdding columns for region code and region name")
 	trail_df['region_code'] = region_code
-	if COUNTRY != "":
-		trail_df['region_name'] = str(REGION["region_id"]) + ", " + str(COUNTRY)
-	else:
-		trail_df['region_name'] = str(REGION["region_id"])
+	trail_df['region_name'] = get_region_name()
 
 	# 8. Get geoJSON objects for each trail
 	print("\nconverting to geoJSON LineString")
@@ -524,6 +547,9 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	tablename = 'destinations_osm'
 	schema = 'public'
 	to_db(trail_df, region_code, tablename, schema)
+
+	print("\nSleeping for " + str(SLEEP_BETWEEN_QUERIES_SEC) + " secs")
+	time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
 
 	return len(trail_df)
 	
@@ -574,15 +600,23 @@ def main():
 		# Prevents database syntax errors (there's probably a better way to do this)
 		park_name = park_name.replace("'", "''")
 
+		# TEMP:
+		if park_name == "Southeast Michigan":
+			break
+
 		park_polygon_index = 0
 		if parks_geojson.geometry.type[0] == "Polygon":
 			region_code = get_region_code(park_name, park_polygon_index)
-			parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
-			parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
-			polygon = util.get_osm_polygon_string(parks_geojson_simplified_coords)
-			total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
+			
 
-			time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
+			import pdb; pdb.set_trace()
+			if TYPE == TYPES["park"]:
+				total_features += create_park_record(park_name, region_code, )
+			else:
+				parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
+				parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
+				polygon = util.get_osm_polygon_string(parks_geojson_simplified_coords)
+				total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
 
 		elif parks_geojson.geometry.type[0] == "MultiPolygon":
 			polygons = parks_geojson.geometry[0]
@@ -592,6 +626,7 @@ def main():
 				region_code = get_region_code(park_name, park_polygon_index)
 				park_polygon_index += 1
 
+				import pdb; pdb.set_trace()
 				parks_geojson_simplified = cur_polygon.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
 
 				# For debugging: output GeoJSON string
@@ -600,15 +635,13 @@ def main():
 				polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
 				total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
 
-				time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
-
 		else:
 			raise "Unknown geometry type: " + parks_geojson.geometry.type[0]
 		
 		print("found " + str(total_features) + " trails so far")
 		
 
-	print("found total of " + str(total_features) + " trails in TOTAGO region_id: " + REGION["region_id"])
+	print("found total of " + str(total_features) + " trails in TOTAGO region_id: " + str(REGION["region_id"]))
 
 
 
