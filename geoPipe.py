@@ -39,13 +39,15 @@ BUS_RADIUS_METERS = 800
 LOOP_COMPLETION_THRESHOLD_METERS = 20
 POLYGON_SIMPLIFICATION_THRESHOLD = 0.0004
 
-SLEEP_BETWEEN_QUERIES_SEC = 2
+SLEEP_BETWEEN_QUERIES_SEC = 4
 OFFSET_START = -1  # -1 default
 
 REGIONS = {
 	"Southeast Michigan": {
+		# Clinton, MI (SW corner) to Richmond, MI (NE corner)
+		"bounds": "-84.046297,42.042086,-82.757646,42.816828",
 		# Dearborn area (SW corner) to St. Claire Shores (NE corner)
-		"bounds": "-83.280879,42.268401,-82.806811,42.659880",
+		# 	"bounds": "-83.280879,42.268401,-82.806811,42.659880",
 
 		# Should be the same as on TOTAGO (5 = SE Michigan / Detroit)
 		"region_id": 5 
@@ -56,10 +58,10 @@ TYPES = {
 	"foot": "foot",
 	"park": "park"
 }
-### TO CHANGE MANUALLY ###
 
+### TO CHANGE MANUALLY ###
 REGION = REGIONS["Southeast Michigan"]
-TYPE = TYPES["park"]
+TYPE = TYPES["foot"]
 WHERE_QUERY = "Park_Size_Acres>20"
 ########################## 
 
@@ -457,6 +459,10 @@ def to_db(trail_df, region_code, tablename, schema=""):
 	return 1
 
 def add_osm_trails_within_polygon(polygon, region_code, park_name):
+
+	print("\nSleeping for " + str(SLEEP_BETWEEN_QUERIES_SEC) + " secs")
+	time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
+
 	print("\nquerying ways from OSM")
 
 	# 1a. query OSM by region
@@ -509,7 +515,6 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	print("\nconverting to geoJSON MultiLineString")
 	trail_df = trail_df.apply(util.get_LineString, axis=1)
 
-
 	# 9. Encode polyline
 	print("\nencoding polyline")
 	trail_df = trail_df.progress_apply(util.get_polyline, axis=1)
@@ -542,9 +547,6 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	tablename = 'destinations_osm'
 	schema = 'public'
 	to_db(trail_df, region_code, tablename, schema)
-
-	print("\nSleeping for " + str(SLEEP_BETWEEN_QUERIES_SEC) + " secs")
-	time.sleep(SLEEP_BETWEEN_QUERIES_SEC)
 
 	return len(trail_df)
 	
