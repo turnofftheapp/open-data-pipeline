@@ -60,10 +60,6 @@ TYPES = {
 
 REGION = REGIONS["Southeast Michigan"]
 TYPE = TYPES["park"]
-
-# TODO: 
-# For any park less than 25 acres, just include centroid for each polygon
-
 WHERE_QUERY = "Park_Size_Acres>20"
 ########################## 
 
@@ -369,25 +365,24 @@ def get_region_name():
 	#	return str(REGION["region_id"])
 
 def create_park_record(park_name, park_region_code, lat, lon):
-	cur_polygon.centroid.x
-	cur_polygon.centroid.y
-
-	trail_list = []
-	trail_list.append({
+	trail_list = [{
 		'id': park_region_code,
 		'name': park_name,
 		'region_code': park_region_code,
-		'region_name': get_region_name()
-		'trail_start': 'lat,lng',
-		#'tags': ''
-	})
-
-	trail_df = pd.DataFrame(trail_df_list)
+		'region_name': get_region_name(),
+		'trail_start': {
+			'lat': lat,
+			'lon': lon
+		}
+	}]
+	trail_df = pd.DataFrame(trail_list)
 
 	print("\nUploading to DB")
 	tablename = 'destinations_osm'
 	schema = 'public'
-	to_db(trail_df, region_code, tablename, schema)
+	to_db(trail_df, park_region_code, tablename, schema)
+
+	return len(trail_list)
 
 def to_db(trail_df, region_code, tablename, schema=""):
 	'''Args: trail_df
@@ -475,7 +470,7 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 	osmElements = queryOSM(osmQuery)
 
 	# Must have at least 2 ways
-	# TODO: see if this is overly restrictive
+	## TODO: see if this is overly restrictive
 	if util.count_ways(osmElements) <= 1:
 		return 0
 
@@ -553,8 +548,8 @@ def add_osm_trails_within_polygon(polygon, region_code, park_name):
 
 	return len(trail_df)
 	
-def get_region_code(park_name, park_index):
-	return "region_" + str(REGION["region_id"]) + "_" + TYPE + "_" + park_name + "_" + str(park_index)
+def get_region_code(park_id, park_index):
+	return TYPE + "_" + park_id + "_" + str(park_index)
 
 def main():
 
@@ -583,7 +578,7 @@ def main():
 	while num_features > 0:
 		offset += 1
 
-		query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=" + WHERE_QUERY + "&text=&objectIds=&time=&geometry=" + REGION["bounds"] + "&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1&resultOffset=" + str(offset)
+		query_url = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=" + WHERE_QUERY + "&outFields=Park_Name%2CPark_Local_Owner%2CParkID&geometry=" + REGION["bounds"] + "&geometryType=esriGeometryEnvelope&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelEnvelopeIntersects&returnGeometry=true&returnTrueCurves=false&outSR=%7B%22wkid%22+%3A+4326%7D&f=geojson&resultRecordCount=1&resultOffset=" + str(offset)
 
 		print(query_url)
 
@@ -600,18 +595,18 @@ def main():
 		# Prevents database syntax errors (there's probably a better way to do this)
 		park_name = park_name.replace("'", "''")
 
+		park_id = parks_geojson.ParkID[0]
+
 		# TEMP:
 		if park_name == "Southeast Michigan":
 			break
 
 		park_polygon_index = 0
 		if parks_geojson.geometry.type[0] == "Polygon":
-			region_code = get_region_code(park_name, park_polygon_index)
+			region_code = get_region_code(park_id, park_polygon_index)
 			
-
-			import pdb; pdb.set_trace()
 			if TYPE == TYPES["park"]:
-				total_features += create_park_record(park_name, region_code, )
+				total_features += create_park_record(park_name, region_code, parks_geojson.geometry.centroid.y[0], parks_geojson.geometry.centroid.x[0])
 			else:
 				parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
 				parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
@@ -623,17 +618,17 @@ def main():
 
 			# Iterate over each polygon
 			for cur_polygon in polygons:
-				region_code = get_region_code(park_name, park_polygon_index)
+				region_code = get_region_code(park_id, park_polygon_index)
 				park_polygon_index += 1
 
-				import pdb; pdb.set_trace()
-				parks_geojson_simplified = cur_polygon.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
-
-				# For debugging: output GeoJSON string
-				# util.get_polygon_geojson_from_multipolygon(parks_geojson_simplified)
-
-				polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
-				total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
+				if TYPE == TYPES["park"]:
+					total_features += create_park_record(park_name, region_code, cur_polygon.centroid.y, cur_polygon.centroid.x)
+				else:
+					parks_geojson_simplified = cur_polygon.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
+					polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
+					total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
+					# For debugging: output GeoJSON string
+					# 	util.get_polygon_geojson_from_multipolygon(parks_geojson_simplified)
 
 		else:
 			raise "Unknown geometry type: " + parks_geojson.geometry.type[0]
