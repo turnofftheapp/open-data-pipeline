@@ -37,10 +37,12 @@ MIN_PATH_DIST_METERS = 200
 MAX_REPAIR_DIST_METERS = 150
 BUS_RADIUS_METERS = 800
 LOOP_COMPLETION_THRESHOLD_METERS = 20
-POLYGON_SIMPLIFICATION_THRESHOLD = 0.0004
 
-SLEEP_BETWEEN_QUERIES_SEC = 4
+SLEEP_BETWEEN_QUERIES_SEC = 5
 OFFSET_START = -1  # -1 default
+
+POLYGON_SIMPLIFICATION_THRESHOLD = 0.0004
+POLYGON_SIMPLIFICATION_THRESHOLD_BICYCLE = 0.005
 
 REGIONS = {
 	"Southeast Michigan": {
@@ -574,6 +576,8 @@ def main():
 	
 	#parks_geojson_raw = util.get_parks_geojson()
 
+	polygon_simplification_threshold = POLYGON_SIMPLIFICATION_THRESHOLD_BICYCLE if TYPE == TYPES["bicycle"]  else POLYGON_SIMPLIFICATION_THRESHOLD
+
 	total_features = 0
 	num_features = 1
 	offset = OFFSET_START
@@ -610,7 +614,7 @@ def main():
 			if TYPE == TYPES["park"]:
 				total_features += create_park_record(park_name, region_code, parks_geojson.geometry.centroid.y[0], parks_geojson.geometry.centroid.x[0])
 			else:
-				parks_geojson_simplified = parks_geojson.geometry.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
+				parks_geojson_simplified = parks_geojson.geometry.simplify(polygon_simplification_threshold)
 				parks_geojson_simplified_coords = parks_geojson_simplified.geometry.apply(util.coord_lister)[0]
 				polygon = util.get_osm_polygon_string(parks_geojson_simplified_coords)
 				total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
@@ -626,7 +630,7 @@ def main():
 				if TYPE == TYPES["park"]:
 					total_features += create_park_record(park_name, region_code, cur_polygon.centroid.y, cur_polygon.centroid.x)
 				else:
-					parks_geojson_simplified = cur_polygon.simplify(POLYGON_SIMPLIFICATION_THRESHOLD)
+					parks_geojson_simplified = cur_polygon.simplify(polygon_simplification_threshold)
 					polygon = util.get_osm_polygon_string_from_multipolygon(parks_geojson_simplified)
 					total_features += add_osm_trails_within_polygon(polygon, region_code, park_name)
 					# For debugging: output GeoJSON string
