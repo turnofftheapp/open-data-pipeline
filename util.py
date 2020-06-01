@@ -15,24 +15,74 @@ from itertools import chain
 
 import config
 
+def get_parks_geojson():
+	# Test out data, see if its usable:
+	# https://www.tpl.org/parkserve/downloads
+	# API Docs: https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0
+
+	# Works with point intersect
+	#query_point_intersect = "https://server3.tplgis.org/arcgis3/rest/services/ParkServe/ParkServe_Shareable/MapServer/0/query?where=&text=&objectIds=&time=&geometry=-83.25533179639743%2C42.35736369223912&geometryType=esriGeometryPoint&inSR=%7B%22wkid%22+%3A+4326%7D&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=%7B%22wkid%22+%3A+4326%7D&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&f=geojson"
+
+	try:
+		r = requests.get(query_url)
+		return json.loads(r.text)
+	except Exception as e:
+		print("Error running ArcGIS query, error below: ")
+		return e
+
+## Geometric
+def coord_lister(geom):
+    coords = list(geom.exterior.coords)
+    return (coords)
+
+def get_osm_polygon_string(coordinates):
+    polygon = ""
+    for coord in coordinates:
+        polygon += str(coord[1]) + " " + str(coord[0]) + " "
+    polygon = polygon[:-1]
+    return polygon
+
+def get_osm_polygon_string_from_multipolygon(polygon_obj):
+	x, y = polygon_obj.exterior.coords.xy
+	polygon = ""
+	for j in range(len(x)):
+		polygon += str(y[j]) + " " + str(x[j]) + " "
+	polygon = polygon[:-1]
+	return polygon
+
+def get_polygon_geojson_from_multipolygon(polygon_obj):
+	x, y = polygon_obj.exterior.coords.xy
+	polygon = ""
+	for j in range(len(x)):
+		polygon += "[" + str(x[j]) + "," + str(y[j]) + "],"
+	polygon = polygon[:-1]
+	return '{"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[' + polygon + ']]},"properties":{}}]}'
+
+def count_ways(osm_elements):
+	num_ways = 0
+	for element in osm_elements: 
+		if element['type'] == 'way':
+			num_ways += 1
+	return num_ways
+
 # This one uses MapQuests API
-def get_region_code(state_full_name, country_full_name="", base_code = 3600000000):
+def get_region_code(location_query, country_full_name="", base_code = 3600000000):
 	''' Queries MapQuest's Nominatum API to find codes for region polygons
-	Args: state_full_name, country_full_name (optional), base_code, use default value
+	Args: location_query, country_full_name (optional), base_code, use default value
 	Returns: Area ID for given region
 	'''
 
 	if country_full_name != "":
-		params = {"state": state_full_name,
+		params = {
+				  "q": location_query,
 				  "country": country_full_name,
 				  "format": "json"
 				 }
 	else:
-		params = {"state": state_full_name,
-				  # "country": country_full_name,
+		params = {
+				  "q": location_query,
 				  "format": "json"
 				 }
-
 	try: 
 		params['key'] = config.mapQuestKey
 	except Exception:
@@ -64,7 +114,7 @@ def get_region_code(state_full_name, country_full_name="", base_code = 360000000
 # 	return c
 
 
-def get_name(c):
+def get_name(c, park_name):
 	"""creates new column name for each row of dataframe, fills with name string from tags object
 
 	Args:
@@ -74,10 +124,10 @@ def get_name(c):
 		new column with trail name
 	"""
 	try:
-		name = c['tags']['name']
+		name = park_name + " - " + c['tags']['name']
 	except Exception as e: 
-		print('ERROR, '+ e + "on trail: " + c)
-	c['name'] = str(name)
+		name = ""
+	c['name'] = park_name
 	return c
 
 
