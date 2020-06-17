@@ -53,6 +53,11 @@ REGIONS = {
 
 		# Should be the same as on TOTAGO (5 = SE Michigan / Detroit)
 		"region_id": 5 
+	},
+	"Chicago": {
+		# Elwood, IL (SW corner) to Kenosha, IL (NE corner)
+		"bounds": "-88.093358,41.428179,-87.526814,42.586303",
+		"region_id": 36
 	}
 }
 TYPES = {
