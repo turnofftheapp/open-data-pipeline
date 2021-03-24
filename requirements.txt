@@ -17,7 +17,7 @@ python-dateutil==2.8.0
 pytz==2018.9
 PyYAML==3.13
 requests==2.21.0
-rsa==3.4.2
+rsa==4.1
 s3transfer==0.2.0
 Shapely==1.6.4.post2
 six==1.12.0
